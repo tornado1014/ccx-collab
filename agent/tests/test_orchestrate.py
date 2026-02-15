@@ -592,7 +592,7 @@ class TestRunAgentCommand:
 
     def test_failed_command_retries(self):
         with mock.patch.dict(os.environ, {"AGENT_MAX_RETRIES": "2", "AGENT_RETRY_SLEEP": "0"}):
-            result = orchestrate.run_agent_command("codex", "exit 1", {"task": "test"})
+            result = orchestrate.run_agent_command("codex", "/bin/sh -c 'exit 1'", {"task": "test"})
             assert result["status"] == "failed"
             assert result["attempt"] == 2
 
@@ -916,9 +916,9 @@ class TestActionRunVerify:
             work_id="verify-002",
             platform="mac",
             out=str(out),
-            commands='["exit 1"]',
+            commands='["/bin/sh -c \'exit 1\'"]',
         )
-        with mock.patch.dict(os.environ, {"VERIFY_COMMANDS": '["exit 1"]'}):
+        with mock.patch.dict(os.environ, {"VERIFY_COMMANDS": '["/bin/sh -c \'exit 1\'"]'}):
             rc = orchestrate.action_run_verify(args)
         assert rc == 2
         result = json.loads(out.read_text())

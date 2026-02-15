@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import pathlib
+import shlex
 import subprocess
 import sys
 import time
@@ -202,14 +203,24 @@ def run_agent_command(agent: str, command: str, payload: Dict[str, Any]) -> Dict
 
     for attempt in range(1, max_retries + 1):
         start = time.perf_counter()
-        proc = subprocess.run(
-            command,
-            shell=True,
-            input=payload_text,
-            text=True,
-            capture_output=True,
-            env=os.environ.copy(),
-        )
+        if _platform.system() == "Windows":
+            proc = subprocess.run(
+                command,
+                shell=True,
+                input=payload_text,
+                text=True,
+                capture_output=True,
+                env=os.environ.copy(),
+            )
+        else:
+            proc = subprocess.run(
+                shlex.split(command),
+                shell=False,
+                input=payload_text,
+                text=True,
+                capture_output=True,
+                env=os.environ.copy(),
+            )
         elapsed_ms = int((time.perf_counter() - start) * 1000)
         stdout_text = proc.stdout or ""
         stderr_text = proc.stderr or ""
@@ -858,7 +869,10 @@ def action_run_verify(args: argparse.Namespace) -> int:
 
     for command in commands:
         start = time.perf_counter()
-        proc = subprocess.run(command, shell=True, text=True, capture_output=True, env=os.environ.copy())
+        if _platform.system() == "Windows":
+            proc = subprocess.run(command, shell=True, text=True, capture_output=True, env=os.environ.copy())
+        else:
+            proc = subprocess.run(shlex.split(command), shell=False, text=True, capture_output=True, env=os.environ.copy())
         elapsed_ms = int((time.perf_counter() - start) * 1000)
         status = "passed" if proc.returncode == 0 else "failed"
         item = {

@@ -26,3 +26,9 @@ agent/retrospectives/
 
 # Lock files
 *.lock
+
+# Generated documentation
+docs/*.html
+
+# Coverage
+.coverage
