@@ -8,7 +8,7 @@ import hashlib
 import json
 import logging
 import os
-import pathlib
+from pathlib import Path
 import shlex
 import subprocess
 import sys
@@ -24,7 +24,7 @@ try:
 except ImportError:
     jsonschema = None  # type: ignore[assignment]
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[1]
 TIMESTAMP_FMT = "%Y-%m-%dT%H:%M:%SZ"
 
 
@@ -32,7 +32,7 @@ def now_iso() -> str:
     return datetime.datetime.now(datetime.timezone.utc).strftime(TIMESTAMP_FMT)
 
 
-def ensure_parent(path: pathlib.Path) -> None:
+def ensure_parent(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
 
@@ -40,11 +40,11 @@ def sha256_bytes(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
-def sha256_file(path: pathlib.Path) -> str:
+def sha256_file(path: Path) -> str:
     return sha256_bytes(path.read_bytes())
 
 
-def acquire_lock(path: pathlib.Path):
+def acquire_lock(path: Path):
     """Acquire a file lock (non-blocking). Returns file descriptor or raises."""
     lock_path = path.with_suffix(".lock")
     ensure_parent(lock_path)
@@ -70,11 +70,11 @@ def release_lock(fd) -> None:
         pass
 
 
-def load_json(path: pathlib.Path) -> Dict[str, Any]:
+def load_json(path: Path) -> Dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def write_json(path: pathlib.Path, payload: Dict[str, Any]) -> None:
+def write_json(path: Path, payload: Dict[str, Any]) -> None:
     ensure_parent(path)
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
 
@@ -188,8 +188,12 @@ def run_agent_command(agent: str, command: str, payload: Dict[str, Any]) -> Dict
 
     if not command:
         if not allow_simulation:
+            env_var = 'CLAUDE_CODE_CMD' if agent == 'claude' else 'CODEX_CLI_CMD'
             raise RuntimeError(
-                f"{agent} CLI command not configured. Set { 'CLAUDE_CODE_CMD' if agent == 'claude' else 'CODEX_CLI_CMD' } or enable SIMULATE_AGENTS=1."
+                f"{agent} CLI command not configured. "
+                f"Set {env_var} environment variable to the path of your {agent} CLI binary, "
+                f"or use SIMULATE_AGENTS=1 for testing without a real CLI. "
+                f"Hint: export {env_var}=/usr/local/bin/{agent} or set SIMULATE_AGENTS=1 for dry-run mode."
             )
         return {
             "status": "simulated",
@@ -230,12 +234,21 @@ def run_agent_command(agent: str, command: str, payload: Dict[str, Any]) -> Dict
                 )
         except subprocess.TimeoutExpired:
             elapsed_ms = int((time.perf_counter() - start) * 1000)
+            logger.error(
+                "Agent '%s' command timed out after %ds (attempt %d/%d). "
+                "Hint: Increase timeout via CLI_TIMEOUT_SECONDS env var (current: %ds). "
+                "Example: export CLI_TIMEOUT_SECONDS=600",
+                agent, cli_timeout, attempt, max_retries, cli_timeout,
+            )
             result = {
                 "status": "failed",
                 "command": command,
                 "return_code": -1,
                 "stdout": "",
-                "stderr": f"Command timed out after {cli_timeout}s",
+                "stderr": (
+                    f"Command timed out after {cli_timeout}s. "
+                    f"Hint: Increase timeout via CLI_TIMEOUT_SECONDS env var (current: {cli_timeout}s)."
+                ),
                 "attempt": attempt,
                 "elapsed_ms": elapsed_ms,
                 "payload_checksum": sha256_bytes(payload_text.encode("utf-8")),
@@ -321,7 +334,7 @@ def parse_verify_commands(raw: str) -> List[str]:
     return commands
 
 
-def write_with_meta(agent: str, work_id: str, payload: Dict[str, Any], path: pathlib.Path) -> Dict[str, Any]:
+def write_with_meta(agent: str, work_id: str, payload: Dict[str, Any], path: Path) -> Dict[str, Any]:
     report = {
         "agent": agent,
         "work_id": work_id,
@@ -334,8 +347,23 @@ def write_with_meta(agent: str, work_id: str, payload: Dict[str, Any], path: pat
 
 
 def action_validate_task(args: argparse.Namespace) -> int:
-    task_path = pathlib.Path(args.task)
-    task = load_json(task_path)
+    task_path = Path(args.task)
+    if not task_path.exists():
+        logger.error(
+            "Task file not found: '%s'. "
+            "Hint: Check the path or see agent/tasks/example.task.json for reference.",
+            task_path,
+        )
+        return 1
+    try:
+        task = load_json(task_path)
+    except json.JSONDecodeError as exc:
+        logger.error(
+            "Invalid JSON in task file '%s': %s. "
+            "Hint: Validate JSON syntax at https://jsonlint.com or use 'python3 -m json.tool %s'.",
+            task_path, exc, task_path,
+        )
+        return 1
     normalized, errors = normalize_task(task)
 
     schema_path = ROOT / "schemas" / "task.schema.json"
@@ -357,9 +385,16 @@ def action_validate_task(args: argparse.Namespace) -> int:
         "task": normalized,
     }
     if args.out:
-        write_with_meta("validation", normalized.get("task_id", "task-unknown"), payload, pathlib.Path(args.out))
+        write_with_meta("validation", normalized.get("task_id", "task-unknown"), payload, Path(args.out))
     else:
-        write_with_meta("validation", normalized.get("task_id", "task-unknown"), payload, pathlib.Path(f"agent/results/validation_{normalized.get('task_id','task-unknown')}.json"))
+        default_out = f"agent/results/validation_{normalized.get('task_id', 'task-unknown')}.json"
+        logger.info(
+            "No --out specified; writing validation results to default path: %s. "
+            "Hint: Provide --out <path> to control output location, "
+            "e.g., --out agent/results/validation_%s.json",
+            default_out, normalized.get("task_id", "task-unknown"),
+        )
+        write_with_meta("validation", normalized.get("task_id", "task-unknown"), payload, Path(default_out))
 
     if errors:
         return 2
@@ -367,13 +402,33 @@ def action_validate_task(args: argparse.Namespace) -> int:
 
 
 def action_split_task(args: argparse.Namespace) -> int:
-    task = load_json(pathlib.Path(args.task))
+    split_task_path = Path(args.task)
+    if not split_task_path.exists():
+        logger.error(
+            "Task file not found: '%s'. "
+            "Hint: Check the path or see agent/tasks/example.task.json for reference.",
+            split_task_path,
+        )
+        return 1
+    try:
+        task = load_json(split_task_path)
+    except json.JSONDecodeError as exc:
+        logger.error(
+            "Invalid JSON in task file '%s': %s. "
+            "Hint: Validate JSON syntax at https://jsonlint.com or use 'python3 -m json.tool %s'.",
+            split_task_path, exc, split_task_path,
+        )
+        return 1
     task, errors = normalize_task(task)
     if errors:
-        logger.warning("Task is invalid. Run validate-task first.")
+        logger.warning(
+            "Task is invalid (%d error(s): %s). Run validate-task first. "
+            "Hint: python3 agent/scripts/orchestrate.py validate-task --task %s --out /tmp/validation.json",
+            len(errors), "; ".join(errors[:3]), args.task,
+        )
         return 2
 
-    plan_file = pathlib.Path(args.plan) if args.plan else None
+    plan_file = Path(args.plan) if args.plan else None
     if plan_file and plan_file.exists():
         plan = load_json(plan_file)
     else:
@@ -456,12 +511,12 @@ def action_split_task(args: argparse.Namespace) -> int:
         },
     }
 
-    out = pathlib.Path(args.out)
+    out = Path(args.out)
     write_with_meta("dispatch", task["task_id"], payload, out)
 
     if args.matrix_output:
-        ensure_parent(pathlib.Path(args.matrix_output))
-        pathlib.Path(args.matrix_output).write_text(json.dumps(matrix, ensure_ascii=False, indent=2), encoding="utf-8")
+        ensure_parent(Path(args.matrix_output))
+        Path(args.matrix_output).write_text(json.dumps(matrix, ensure_ascii=False, indent=2), encoding="utf-8")
 
     return 0
 
@@ -576,9 +631,30 @@ def normalize_acceptance_criteria(raw: List[Any], subtask_id: str) -> List[Dict[
 
 
 def action_run_plan(args: argparse.Namespace) -> int:
-    task = load_json(pathlib.Path(args.task))
+    plan_task_path = Path(args.task)
+    if not plan_task_path.exists():
+        logger.error(
+            "Task file not found: '%s'. "
+            "Hint: Check the path or see agent/tasks/example.task.json for reference.",
+            plan_task_path,
+        )
+        return 1
+    try:
+        task = load_json(plan_task_path)
+    except json.JSONDecodeError as exc:
+        logger.error(
+            "Invalid JSON in task file '%s': %s. "
+            "Hint: Validate JSON syntax at https://jsonlint.com or use 'python3 -m json.tool %s'.",
+            plan_task_path, exc, plan_task_path,
+        )
+        return 1
     task, errors = normalize_task(task)
     if errors:
+        logger.error(
+            "Task validation failed (%d error(s): %s). "
+            "Hint: Run validate-task first to see all issues.",
+            len(errors), "; ".join(errors[:3]),
+        )
         return 2
 
     command = os.getenv("CLAUDE_CODE_CMD", "").strip()
@@ -632,17 +708,38 @@ def action_run_plan(args: argparse.Namespace) -> int:
     if not chunks:
         result["open_questions"].append("No implementation chunks could be generated from the task subtasks.")
 
-    write_with_meta("claude", work_id, result, pathlib.Path(args.out))
+    write_with_meta("claude", work_id, result, Path(args.out))
     return 0 if status == "done" else 2
 
 
 def action_run_implement(args: argparse.Namespace) -> int:
-    task = load_json(pathlib.Path(args.task))
+    impl_task_path = Path(args.task)
+    if not impl_task_path.exists():
+        logger.error(
+            "Task file not found: '%s'. "
+            "Hint: Check the path or see agent/tasks/example.task.json for reference.",
+            impl_task_path,
+        )
+        return 1
+    try:
+        task = load_json(impl_task_path)
+    except json.JSONDecodeError as exc:
+        logger.error(
+            "Invalid JSON in task file '%s': %s. "
+            "Hint: Validate JSON syntax at https://jsonlint.com or use 'python3 -m json.tool %s'.",
+            impl_task_path, exc, impl_task_path,
+        )
+        return 1
     task, errors = normalize_task(task)
     if errors:
+        logger.error(
+            "Task validation failed (%d error(s): %s). "
+            "Hint: Run validate-task first to see all issues.",
+            len(errors), "; ".join(errors[:3]),
+        )
         return 2
 
-    dispatch = load_json(pathlib.Path(args.dispatch)) if args.dispatch else None
+    dispatch = load_json(Path(args.dispatch)) if args.dispatch else None
     dispatch_subtasks = (dispatch or {}).get("subtasks", []) if dispatch else []
 
     subtask: Optional[Dict[str, Any]] = None
@@ -658,9 +755,14 @@ def action_run_implement(args: argparse.Namespace) -> int:
                 break
 
     if subtask is None:
-        logger.error("dispatch/subtask id missing: '%s'", args.subtask_id)
         available = [s.get("subtask_id") for s in dispatch_subtasks] if dispatch_subtasks else [s.get("subtask_id") for s in task.get("subtasks", [])]
-        logger.error("Available: %s", available)
+        logger.error(
+            "Subtask '%s' not found in dispatch or task definition. "
+            "Available subtask IDs: %s. "
+            "Hint: Verify --subtask-id matches an ID from the dispatch file or task JSON. "
+            "Run split-task to generate the dispatch if it does not exist yet.",
+            args.subtask_id, available,
+        )
         return 1
 
     if dispatch_subtasks and not any(item.get("subtask_id") == args.subtask_id for item in dispatch_subtasks):
@@ -716,16 +818,20 @@ def action_run_implement(args: argparse.Namespace) -> int:
         result["status"] = status
     if status == "failed":
         result["open_questions"].append(f"{agent_name} returned status={cmd_status}.")
-    write_with_meta(agent_name, work_id, result, pathlib.Path(args.out))
+    write_with_meta(agent_name, work_id, result, Path(args.out))
     return 0 if status == "done" else 2
 
 
 def action_merge_results(args: argparse.Namespace) -> int:
     work_id = args.work_id
     if not work_id:
+        logger.error(
+            "Missing --work-id for merge-results. "
+            "Hint: Provide the task/work identifier, e.g., --work-id my-task-001.",
+        )
         return 1
 
-    pattern = pathlib.Path(args.input)
+    pattern = Path(args.input)
     base = pattern.parent
     results: List[Dict[str, Any]] = []
     lock = None
@@ -740,9 +846,14 @@ def action_merge_results(args: argparse.Namespace) -> int:
             results.append(load_json(pattern))
 
     try:
-        lock = acquire_lock(pathlib.Path(args.out))
+        lock = acquire_lock(Path(args.out))
     except Exception as exc:
-        logger.error("unable to acquire merge lock for %s: %s", args.out, exc)
+        logger.error(
+            "Unable to acquire merge lock for '%s': %s. "
+            "Hint: Another pipeline process may be writing to this file. "
+            "Wait for it to finish or remove the stale lock file: %s.lock",
+            args.out, exc, args.out,
+        )
         return 1
 
     try:
@@ -757,7 +868,7 @@ def action_merge_results(args: argparse.Namespace) -> int:
                 "artifacts": [],
                 "open_questions": ["No implementation artifacts were produced."],
             }
-            write_with_meta("merge", work_id, merged, pathlib.Path(args.out))
+            write_with_meta("merge", work_id, merged, Path(args.out))
             return 2
 
         status = build_report_status([as_payload(r).get("status", "failed") for r in results])
@@ -765,12 +876,17 @@ def action_merge_results(args: argparse.Namespace) -> int:
         expected_subtask_ids: List[str] = []
         dispatch_load_failed = False
         if args.dispatch:
-            dispatch_path = pathlib.Path(args.dispatch)
+            dispatch_path = Path(args.dispatch)
             if dispatch_path.exists():
                 try:
                     dispatch_payload = load_json(dispatch_path)
                 except Exception as exc:
-                    logger.error("failed to load dispatch file '%s': %s", args.dispatch, exc)
+                    logger.error(
+                        "Failed to load dispatch file '%s': %s. "
+                        "Hint: Ensure the dispatch file is valid JSON. "
+                        "Validate with: python3 -m json.tool %s",
+                        args.dispatch, exc, args.dispatch,
+                    )
                     dispatch_load_failed = True
                 else:
                     dispatch_items = dispatch_payload.get("subtasks", [])
@@ -781,7 +897,12 @@ def action_merge_results(args: argparse.Namespace) -> int:
                             if isinstance(item, dict) and item.get("subtask_id")
                         ]
             else:
-                logger.error("dispatch file not found: '%s'", args.dispatch)
+                logger.error(
+                    "Dispatch file not found: '%s'. "
+                    "Hint: Run split-task first to generate the dispatch file, "
+                    "or check the --dispatch path is correct.",
+                    args.dispatch,
+                )
                 dispatch_load_failed = True
 
         result_by_subtask_id: Dict[str, Dict[str, Any]] = {}
@@ -830,14 +951,14 @@ def action_merge_results(args: argparse.Namespace) -> int:
             "expected_subtasks": expected_subtask_ids,
             "missing_subtasks": missing_subtasks,
         }
-        write_with_meta(args.kind, work_id, merged, pathlib.Path(args.out))
+        write_with_meta(args.kind, work_id, merged, Path(args.out))
         return 0 if status not in {"failed", "blocked"} else 2
     finally:
         if lock:
             release_lock(lock)
 
 
-def build_junit_xml(test_results: List[Dict[str, Any]], suite_name: str, junit_path: pathlib.Path, total_time: float, failures: int) -> None:
+def build_junit_xml(test_results: List[Dict[str, Any]], suite_name: str, junit_path: Path, total_time: float, failures: int) -> None:
     total = len(test_results)
     lines = [
         f'<testsuite name="{suite_name}" tests="{total}" failures="{failures}" time="{total_time:.3f}">'
@@ -873,15 +994,25 @@ def action_run_verify(args: argparse.Namespace) -> int:
                 pass
 
     if not commands:
+        logger.error(
+            "No verification commands configured. The pipeline requires at least one verify command to pass. "
+            "Hint: Set VERIFY_COMMANDS env var (e.g., export VERIFY_COMMANDS='[\"pytest\", \"flake8\"]') "
+            "or add defaults in agent/pipeline-config.json under 'default_verify_commands'. "
+            "You can also pass --commands directly to run-verify.",
+        )
         payload = {
             "platform": platform,
             "status": "failed",
             "commands": [],
             "failed_tests": [],
             "artifacts": [],
-            "open_questions": ["VERIFY_COMMANDS not configured — pipeline fail. Set VERIFY_COMMANDS env/arg."],
+            "open_questions": [
+                "VERIFY_COMMANDS not configured -- pipeline requires verification commands to proceed. "
+                "Hint: Check VERIFY_COMMANDS env var or pipeline-config.json defaults.verify_commands. "
+                "Example: export VERIFY_COMMANDS='[\"pytest -v\", \"flake8\"]'"
+            ],
         }
-        out = pathlib.Path(args.out)
+        out = Path(args.out)
         write_with_meta("verify", work_id, payload, out)
         return 1
 
@@ -900,13 +1031,22 @@ def action_run_verify(args: argparse.Namespace) -> int:
                 proc = subprocess.run(shlex.split(command), shell=False, text=True, capture_output=True, env=os.environ.copy(), timeout=cli_timeout)
         except subprocess.TimeoutExpired:
             elapsed_ms = int((time.perf_counter() - start) * 1000)
+            logger.error(
+                "Verification command timed out after %ds: '%s'. "
+                "Hint: Increase timeout via CLI_TIMEOUT_SECONDS env var (current: %ds). "
+                "Example: export CLI_TIMEOUT_SECONDS=600",
+                cli_timeout, command_output_trace(command), cli_timeout,
+            )
             item = {
                 "command": command,
                 "status": "failed",
                 "return_code": -1,
                 "time_ms": elapsed_ms,
                 "stdout": "",
-                "stderr": f"Command timed out after {cli_timeout}s",
+                "stderr": (
+                    f"Command timed out after {cli_timeout}s. "
+                    f"Hint: Increase timeout via CLI_TIMEOUT_SECONDS env var (current: {cli_timeout}s)."
+                ),
             }
             command_results.append(item)
             failures += 1
@@ -928,7 +1068,7 @@ def action_run_verify(args: argparse.Namespace) -> int:
             failed_tests.append(item)
 
     total_time = time.perf_counter() - start_total
-    out_path = pathlib.Path(args.out)
+    out_path = Path(args.out)
     junit_dir = out_path.parent
     junit_path = junit_dir / f"junit_{work_id}_{platform}.xml"
     build_junit_xml(command_results, f"verify-{platform}", junit_path, total_time, failures)
@@ -944,15 +1084,15 @@ def action_run_verify(args: argparse.Namespace) -> int:
             item["command"] for item in failed_tests
         ] if failed_tests else [],
     }
-    write_with_meta("verify", work_id, payload, pathlib.Path(args.out))
+    write_with_meta("verify", work_id, payload, Path(args.out))
     return 0 if status == "passed" else 2
 
 
 def action_review(args: argparse.Namespace) -> int:
     work_id = args.work_id
 
-    plan_path = pathlib.Path(args.plan)
-    implement_path = pathlib.Path(args.implement)
+    plan_path = Path(args.plan)
+    implement_path = Path(args.implement)
 
     plan_payload = as_payload(load_json(plan_path)) if plan_path.exists() else {}
     if implement_path.exists():
@@ -962,7 +1102,7 @@ def action_review(args: argparse.Namespace) -> int:
 
     verify_payloads = []
     for verify_path in args.verify:
-        path = pathlib.Path(verify_path)
+        path = Path(verify_path)
         if path.exists():
             verify_payloads.append(as_payload(load_json(path)))
 
@@ -1016,7 +1156,7 @@ def action_review(args: argparse.Namespace) -> int:
         },
     }
 
-    write_with_meta("review", work_id, review_payload, pathlib.Path(args.out))
+    write_with_meta("review", work_id, review_payload, Path(args.out))
 
     if go_no_go:
         return 2
@@ -1024,7 +1164,7 @@ def action_review(args: argparse.Namespace) -> int:
 
 
 def action_retrospect(args: argparse.Namespace) -> int:
-    review_payload = as_payload(load_json(pathlib.Path(args.review))) if pathlib.Path(args.review).exists() else {}
+    review_payload = as_payload(load_json(Path(args.review))) if Path(args.review).exists() else {}
     work_id = args.work_id
 
     if not review_payload:
@@ -1063,12 +1203,12 @@ def action_retrospect(args: argparse.Namespace) -> int:
         },
         "next_plan": next_actions,
         "evidence": {
-            "review_reference": pathlib.Path(args.review).as_posix(),
+            "review_reference": Path(args.review).as_posix(),
             "questions": open_questions,
         },
     }
 
-    out = pathlib.Path(args.out)
+    out = Path(args.out)
     write_with_meta("retrospect", work_id, payload, out)
     return 0
 
@@ -1153,8 +1293,29 @@ def main() -> int:
 
     try:
         return int(args.func(args))
+    except FileNotFoundError as exc:
+        logger.error(
+            "File not found: %s. "
+            "Hint: Check the path or see agent/tasks/example.task.json for reference.",
+            exc,
+        )
+        return 1
+    except json.JSONDecodeError as exc:
+        logger.error(
+            "Invalid JSON: %s. "
+            "Hint: Validate JSON syntax at https://jsonlint.com or use 'python3 -m json.tool <file>'.",
+            exc,
+        )
+        return 1
+    except RuntimeError as exc:
+        logger.error("%s", exc)
+        return 1
     except Exception as exc:
-        print(f"{type(exc).__name__}: {exc}", file=sys.stderr)
+        logger.error(
+            "Unexpected error (%s): %s. "
+            "Hint: Run with --verbose for debug output, or check agent/scripts/orchestrate.py for details.",
+            type(exc).__name__, exc,
+        )
         return 1
 
 
