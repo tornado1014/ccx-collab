@@ -41,6 +41,9 @@ jobs:
       RESULTS_DIR: agent/results/${{ matrix.os_prefix }}
       CLAUDE_CODE_CMD: ${{ matrix.claude_wrapper_cmd }}
       CODEX_CLI_CMD: ${{ matrix.codex_wrapper_cmd }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      SIMULATE_AGENTS: ${{ secrets.ANTHROPIC_API_KEY == '' && '1' || '0' }}
       VERIFY_COMMANDS: ${{ vars.VERIFY_COMMANDS }}
       AGENT_MAX_RETRIES: 3
       AGENT_RETRY_SLEEP: 30
@@ -82,6 +85,9 @@ jobs:
         shell: bash
         run: mkdir -p "${{ env.RESULTS_DIR }}"
 
+      - name: Run unit tests
+        run: python3 -m pytest agent/tests/ -v --tb=short --junitxml=${{ env.RESULTS_DIR }}/junit_unit_tests.xml
+
       - name: Make wrappers executable (unix)
         if: runner.os != 'Windows'
         run: chmod +x agent/scripts/*.sh
@@ -110,3 +116,12 @@ jobs:
         with:
           name: pipeline-${{ matrix.os_prefix }}-${{ steps.resolve.outputs.work_id }}
           path: ${{ env.RESULTS_DIR }}/
+
+      - name: Upload JUnit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-${{ matrix.os_prefix }}-${{ steps.resolve.outputs.work_id }}
+          path: |
+            ${{ env.RESULTS_DIR }}/junit_*.xml
+          if-no-files-found: ignore

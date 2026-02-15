@@ -828,6 +828,17 @@ def action_run_verify(args: argparse.Namespace) -> int:
         commands = parse_verify_commands(args.commands)
 
     if not commands:
+        config_path = ROOT / "pipeline-config.json"
+        if config_path.exists():
+            try:
+                config = load_json(config_path)
+                default_cmds = config.get("default_verify_commands", [])
+                if isinstance(default_cmds, list):
+                    commands = [str(c).strip() for c in default_cmds if str(c).strip()]
+            except Exception:
+                pass
+
+    if not commands:
         payload = {
             "platform": platform,
             "status": "failed",

@@ -30,8 +30,33 @@ try {
     }
 
     $payload = $payloadText | ConvertFrom-Json -ErrorAction Stop
-    $prompt = if ($payload.PSObject.Properties.Name -contains "request" -and $payload.request) {
+    # Build structured prompt from payload context
+    $promptParts = @()
+    if ($payload.PSObject.Properties.Name -contains "phase" -and $payload.phase) {
+        $promptParts += "[Phase: $($payload.phase)]"
+    }
+    $taskId = ""
+    if ($payload.PSObject.Properties.Name -contains "task_id" -and $payload.task_id) {
+        $taskId = $payload.task_id
+    } elseif ($payload.PSObject.Properties.Name -contains "task" -and $payload.task.PSObject.Properties.Name -contains "task_id") {
+        $taskId = $payload.task.task_id
+    }
+    if ($taskId) { $promptParts += "[Task: $taskId]" }
+
+    if ($payload.PSObject.Properties.Name -contains "subtask" -and $payload.subtask) {
+        $st = $payload.subtask
+        $stId = if ($st.PSObject.Properties.Name -contains "subtask_id") { $st.subtask_id } else { "" }
+        $stTitle = if ($st.PSObject.Properties.Name -contains "title") { $st.title } else { "" }
+        $promptParts += "[Subtask: $stId - $stTitle]"
+    }
+
+    $request = if ($payload.PSObject.Properties.Name -contains "request" -and $payload.request) {
         $payload.request
+    } else { "" }
+    if ($request) { $promptParts += $request }
+
+    $prompt = if ($promptParts.Count -gt 0) {
+        $promptParts -join "`n"
     } else {
         "Process the provided task payload and return structured JSON results."
     }
@@ -39,6 +64,9 @@ try {
     $stderrFile = [System.IO.Path]::GetTempFileName()
     $exitCode = 0
     $resultText = ""
+
+    # Prevent nested Claude Code sessions
+    Remove-Item Env:CLAUDECODE -ErrorAction SilentlyContinue
 
     try {
         $resultText = & claude --print $prompt 2>$stderrFile

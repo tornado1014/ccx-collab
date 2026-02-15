@@ -15,5 +15,9 @@
       "description": "Implementation, execution — typically Codex CLI",
       "env_var": "CODEX_CLI_CMD"
     }
-  }
+  },
+  "default_verify_commands": [
+    "python3 -m pytest agent/tests/ -v --tb=short",
+    "python3 -c \"import json,pathlib; [json.loads(p.read_text()) for p in pathlib.Path('agent/schemas').glob('*.json')]\""
+  ]
 }
