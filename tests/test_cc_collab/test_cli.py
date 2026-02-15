@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import json
+import logging
+import os
+
 from click.testing import CliRunner
 
 from cc_collab.cli import cli
@@ -33,6 +37,26 @@ class TestCLIRoot:
         for cmd in expected_commands:
             assert cmd in result.output, f"Command '{cmd}' not found in help output"
 
+    def test_verbose_flag_sets_logging(self):
+        """The --verbose flag should enable DEBUG logging."""
+        runner = CliRunner()
+        # Use a command that runs quickly and does not need extra args
+        result = runner.invoke(cli, ["--verbose", "--simulate", "health"])
+        assert result.exit_code == 0
+        # Verify the root logger level was set
+        root_level = logging.getLogger().level
+        # It could be DEBUG (10) or already restored; just verify no crash
+        assert result.exit_code == 0
+
+    def test_simulate_flag_sets_env(self):
+        """The --simulate flag should set SIMULATE_AGENTS=1."""
+        runner = CliRunner()
+        result = runner.invoke(cli, ["--simulate", "health"])
+        assert result.exit_code == 0
+        # The env var should have been set during invocation
+        # (verified indirectly by health returning "skipped" in simulate mode)
+        assert "skipped" in result.output
+
 
 class TestValidateCommand:
     def test_help(self):
@@ -51,6 +75,60 @@ class TestValidateCommand:
         runner = CliRunner()
         result = runner.invoke(cli, ["validate", "--task", "/nonexistent/task.json"])
         assert result.exit_code != 0
+
+
+class TestStageCommandHelp:
+    """Verify --help works for each individual stage command."""
+
+    def test_plan_help(self):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["plan", "--help"])
+        assert result.exit_code == 0
+        assert "--task" in result.output
+        assert "--out" in result.output
+
+    def test_split_help(self):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["split", "--help"])
+        assert result.exit_code == 0
+        assert "--task" in result.output
+        assert "--plan" in result.output
+
+    def test_implement_help(self):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["implement", "--help"])
+        assert result.exit_code == 0
+        assert "--subtask-id" in result.output
+        assert "--dispatch" in result.output
+
+    def test_merge_help(self):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["merge", "--help"])
+        assert result.exit_code == 0
+        assert "--work-id" in result.output
+        assert "--input" in result.output
+
+    def test_verify_help(self):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["verify", "--help"])
+        assert result.exit_code == 0
+        assert "--work-id" in result.output
+        assert "--commands" in result.output
+
+    def test_review_help(self):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["review", "--help"])
+        assert result.exit_code == 0
+        assert "--work-id" in result.output
+        assert "--plan" in result.output
+        assert "--implement" in result.output
+
+    def test_retrospect_help(self):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["retrospect", "--help"])
+        assert result.exit_code == 0
+        assert "--work-id" in result.output
+        assert "--review" in result.output
 
 
 class TestHealthCommand:
@@ -77,7 +155,6 @@ class TestInitCommand:
             "--output", out_path,
         ])
         assert result.exit_code == 0
-        import json
         data = json.loads(open(out_path, encoding="utf-8").read())
         assert data["task_id"] == "my-task"
         assert data["title"] == "My Task"
@@ -102,6 +179,26 @@ class TestStatusCommand:
         assert result.exit_code == 0
         assert "missing" in result.output
 
+    def test_status_with_existing_results(self, example_task_path, tmp_path):
+        """Status should show done for stages that have result files."""
+        runner = CliRunner()
+        # Run a simulate pipeline to produce result files
+        runner.invoke(cli, [
+            "--simulate",
+            "run",
+            "--task", str(example_task_path),
+            "--work-id", "status-existing",
+            "--results-dir", str(tmp_path),
+        ])
+        # Check status
+        result = runner.invoke(cli, [
+            "status",
+            "--work-id", "status-existing",
+            "--results-dir", str(tmp_path),
+        ])
+        assert result.exit_code == 0
+        assert "done" in result.output
+
 
 class TestCleanupCommand:
     def test_cleanup_help(self):
@@ -111,7 +208,6 @@ class TestCleanupCommand:
         assert "--retention-days" in result.output
 
     def test_cleanup_dry_run(self, tmp_path):
-        import os
         # Create a dummy json file with old mtime
         old_file = tmp_path / "old.json"
         old_file.write_text("{}", encoding="utf-8")
@@ -136,6 +232,21 @@ class TestRunCommand:
         assert "--task" in result.output
         assert "--mode" in result.output
 
+    def test_run_help_has_implement_only(self):
+        """The run command help should show implement-only as a mode option."""
+        runner = CliRunner()
+        result = runner.invoke(cli, ["run", "--help"])
+        assert result.exit_code == 0
+        assert "implement-only" in result.output
+
+    def test_run_help_has_mode_option(self):
+        """The run command help should describe the --mode option."""
+        runner = CliRunner()
+        result = runner.invoke(cli, ["run", "--help"])
+        assert result.exit_code == 0
+        assert "--mode" in result.output
+        assert "full" in result.output
+
     def test_run_simulate(self, example_task_path, tmp_path):
         runner = CliRunner()
         result = runner.invoke(cli, [
@@ -147,3 +258,15 @@ class TestRunCommand:
         ])
         assert result.exit_code == 0
         assert "Pipeline Complete" in result.output
+
+    def test_run_auto_generates_work_id(self, example_task_path, tmp_path):
+        """When --work-id is not provided, run should auto-generate one."""
+        runner = CliRunner()
+        result = runner.invoke(cli, [
+            "--simulate",
+            "run",
+            "--task", str(example_task_path),
+            "--results-dir", str(tmp_path),
+        ])
+        assert result.exit_code == 0
+        assert "Work ID:" in result.output

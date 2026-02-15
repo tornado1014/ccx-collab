@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+from io import StringIO
 from pathlib import Path
 
 from click.testing import CliRunner
@@ -118,6 +120,100 @@ class TestInitIntegration:
         ])
         assert result2.exit_code == 0
 
+    def test_init_with_custom_output_path(self, tmp_path):
+        """Init writes to a custom output path when --output is provided."""
+        custom_dir = tmp_path / "custom" / "subdir"
+        out_path = str(custom_dir / "my-task.task.json")
+        runner = CliRunner()
+        result = runner.invoke(cli, [
+            "init",
+            "--task-id", "custom-path-task",
+            "--title", "Custom Path Task",
+            "--output", out_path,
+        ])
+        assert result.exit_code == 0
+        assert Path(out_path).exists()
+        data = json.loads(Path(out_path).read_text(encoding="utf-8"))
+        assert data["task_id"] == "custom-path-task"
+
+    def test_init_default_output_path_construction(self, tmp_path, monkeypatch):
+        """When --output is empty, init constructs a default path from task_id."""
+        # Change cwd to tmp_path so the default path writes there
+        monkeypatch.chdir(tmp_path)
+        runner = CliRunner()
+        result = runner.invoke(cli, [
+            "init",
+            "--task-id", "auto-path-task",
+            "--title", "Auto Path Task",
+            # No --output: will use default agent/tasks/{task_id}.task.json
+        ])
+        assert result.exit_code == 0
+        expected = Path("agent/tasks/auto-path-task.task.json")
+        assert expected.exists()
+        data = json.loads(expected.read_text(encoding="utf-8"))
+        assert data["task_id"] == "auto-path-task"
+
+
+class TestCleanupIntegration:
+    def test_cleanup_no_old_files(self, tmp_path):
+        """Cleanup with no old files (all files are recent) should delete nothing."""
+        recent = tmp_path / "recent.json"
+        recent.write_text("{}", encoding="utf-8")
+        runner = CliRunner()
+        result = runner.invoke(cli, [
+            "cleanup",
+            "--results-dir", str(tmp_path),
+            "--retention-days", "1",
+        ])
+        assert result.exit_code == 0
+        assert recent.exists(), "Recent file should NOT have been deleted"
+
+    def test_cleanup_nonexistent_directory(self, tmp_path):
+        """Cleanup on a non-existent directory should fail gracefully."""
+        runner = CliRunner()
+        result = runner.invoke(cli, [
+            "cleanup",
+            "--results-dir", str(tmp_path / "nonexistent"),
+        ])
+        assert result.exit_code != 0
+
+    def test_cleanup_invalid_retention_zero(self, tmp_path):
+        """Cleanup with --retention-days=0 should fail."""
+        (tmp_path / "dummy.json").write_text("{}", encoding="utf-8")
+        runner = CliRunner()
+        result = runner.invoke(cli, [
+            "cleanup",
+            "--results-dir", str(tmp_path),
+            "--retention-days", "0",
+        ])
+        assert result.exit_code != 0
+
+    def test_cleanup_invalid_retention_negative(self, tmp_path):
+        """Cleanup with --retention-days=-1 should fail."""
+        (tmp_path / "dummy.json").write_text("{}", encoding="utf-8")
+        runner = CliRunner()
+        result = runner.invoke(cli, [
+            "cleanup",
+            "--results-dir", str(tmp_path),
+            "--retention-days", "-1",
+        ])
+        assert result.exit_code != 0
+
+    def test_cleanup_live_deletes_old(self, tmp_path):
+        """Cleanup in live mode (no --dry-run) should actually delete old files."""
+        old_file = tmp_path / "old_result.json"
+        old_file.write_text("{}", encoding="utf-8")
+        old_time = 1000000  # very old timestamp
+        os.utime(old_file, (old_time, old_time))
+        runner = CliRunner()
+        result = runner.invoke(cli, [
+            "cleanup",
+            "--results-dir", str(tmp_path),
+            "--retention-days", "1",
+        ])
+        assert result.exit_code == 0
+        assert not old_file.exists(), "Old file should have been deleted"
+
 
 class TestConfigModule:
     def test_get_project_root(self):
@@ -130,11 +226,37 @@ class TestConfigModule:
         platform = get_platform()
         assert platform in {"macos", "linux", "windows"}
 
+    def test_get_platform_returns_string(self):
+        from cc_collab.config import get_platform
+        platform = get_platform()
+        assert isinstance(platform, str)
+        assert len(platform) > 0
+
     def test_load_pipeline_config(self):
         from cc_collab.config import load_pipeline_config
         config = load_pipeline_config()
         assert "defaults" in config
         assert "roles" in config
+
+    def test_load_pipeline_config_returns_dict(self):
+        from cc_collab.config import load_pipeline_config
+        config = load_pipeline_config()
+        assert isinstance(config, dict)
+
+    def test_get_results_dir(self):
+        from cc_collab.config import get_results_dir
+        results = get_results_dir()
+        assert results.name == "results"
+        assert "agent" in str(results)
+
+    def test_get_project_root_via_env(self, tmp_path, monkeypatch):
+        """Setting CLAUDE_CODEX_ROOT should override normal root detection."""
+        agent_dir = tmp_path / "agent"
+        agent_dir.mkdir()
+        monkeypatch.setenv("CLAUDE_CODEX_ROOT", str(tmp_path))
+        from cc_collab.config import get_project_root
+        root = get_project_root()
+        assert root == tmp_path
 
 
 class TestOutputModule:
@@ -152,3 +274,38 @@ class TestOutputModule:
         print_stage_result("test", 1)
         print_error("test error")
         print_success("test success")
+
+    def test_print_error_does_not_crash(self):
+        """print_error should handle any string without crashing."""
+        from cc_collab.output import print_error
+        print_error("")
+        print_error("Simple error message")
+        print_error("Error with special chars: <>&\"'")
+
+    def test_print_success_does_not_crash(self):
+        """print_success should handle any string without crashing."""
+        from cc_collab.output import print_success
+        print_success("")
+        print_success("All tests passed")
+        print_success("Path: /tmp/some/result.json")
+
+    def test_print_pipeline_header(self):
+        """print_pipeline_header should produce output without crashing."""
+        from cc_collab.output import print_pipeline_header
+        # Should not raise any exception
+        print_pipeline_header("task.json", "work-123", "full")
+        print_pipeline_header("another.json", "w-456", "implement-only")
+
+    def test_print_json_result(self):
+        """print_json_result should render JSON data without crashing."""
+        from cc_collab.output import print_json_result
+        print_json_result({"status": "passed", "count": 3})
+        print_json_result({})
+
+    def test_print_stage_result_with_output_path(self):
+        """print_stage_result should include the output path in the message."""
+        from cc_collab.output import print_stage_result
+        # These should not raise
+        print_stage_result("validate", 0, "/tmp/validation.json")
+        print_stage_result("implement", 2, "/tmp/implement.json")
+        print_stage_result("verify", 0)

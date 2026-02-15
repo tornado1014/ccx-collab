@@ -8,11 +8,29 @@ version = "0.1.0"
 description = "CLI tool for Claude Code + Codex CLI collaboration pipeline"
 requires-python = ">=3.9"
 license = {text = "MIT"}
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: Software Development :: Quality Assurance",
+]
 dependencies = [
     "click>=8.0",
     "rich>=13.0",
     "jsonschema>=4.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/user/Claude_Codex_Collaboration"
+Repository = "https://github.com/user/Claude_Codex_Collaboration"
+Issues = "https://github.com/user/Claude_Codex_Collaboration/issues"
 
 [project.scripts]
 cc-collab = "cc_collab.cli:main"
