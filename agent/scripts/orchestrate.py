@@ -74,6 +74,18 @@ def load_json(path: Path) -> Dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def load_pipeline_config_defaults() -> Dict[str, Any]:
+    """Load defaults from pipeline-config.json, returning empty dict on failure."""
+    config_path = ROOT / "pipeline-config.json"
+    if config_path.exists():
+        try:
+            config = load_json(config_path)
+            return config.get("defaults", {}) if isinstance(config, dict) else {}
+        except Exception:
+            return {}
+    return {}
+
+
 def write_json(path: Path, payload: Dict[str, Any]) -> None:
     ensure_parent(path)
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -180,11 +192,35 @@ def command_output_trace(cmd: str) -> str:
     return cmd[:180] + "..." if len(cmd) > 180 else cmd
 
 
+_agent_call_count = 0
+
+
 def run_agent_command(agent: str, command: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-    max_retries = int(os.getenv("AGENT_MAX_RETRIES", "2"))
+    global _agent_call_count
+
+    config_defaults = load_pipeline_config_defaults()
+
+    max_retries_env = os.getenv("AGENT_MAX_RETRIES")
+    if max_retries_env is not None:
+        max_retries = int(max_retries_env)
+    else:
+        max_retries = int(config_defaults.get("retry_count", config_defaults.get("max_retries", 2)))
+
     retry_wait = int(os.getenv("AGENT_RETRY_SLEEP", "20"))
     cli_timeout = int(os.getenv("CLI_TIMEOUT_SECONDS", "300"))
     allow_simulation = os.getenv("SIMULATE_AGENTS", "0").strip() in {"1", "true", "TRUE", "True"}
+
+    rate_limit_env = os.getenv("AGENT_RATE_LIMIT")
+    if rate_limit_env is not None:
+        rate_limit_seconds = float(rate_limit_env)
+    else:
+        rate_limit_seconds = float(config_defaults.get("rate_limit_seconds", 0))
+
+    # Apply rate limiting: delay before non-first CLI calls
+    if _agent_call_count > 0 and rate_limit_seconds > 0:
+        logger.debug("Rate limiting: sleeping %.1fs before CLI call", rate_limit_seconds)
+        time.sleep(rate_limit_seconds)
+    _agent_call_count += 1
 
     if not command:
         if not allow_simulation:
@@ -1213,6 +1249,114 @@ def action_retrospect(args: argparse.Namespace) -> int:
     return 0
 
 
+def check_cli_health(command: str, agent_name: str) -> bool:
+    """Run a pre-flight health check on a CLI tool.
+
+    Attempts ``<command> --version`` first, falling back to ``<command> --help``
+    if --version returns a non-zero exit code.  Returns True if the CLI is
+    reachable and responds within 10 seconds, False otherwise.
+    """
+    for flag in ("--version", "--help"):
+        check_cmd = f"{command} {flag}"
+        try:
+            if _platform.system() == "Windows":
+                proc = subprocess.run(
+                    check_cmd,
+                    shell=True,
+                    text=True,
+                    capture_output=True,
+                    timeout=10,
+                )
+            else:
+                proc = subprocess.run(
+                    shlex.split(check_cmd),
+                    shell=False,
+                    text=True,
+                    capture_output=True,
+                    timeout=10,
+                )
+            if proc.returncode == 0:
+                logger.info("Health check passed for %s (%s): OK", agent_name, check_cmd)
+                return True
+        except subprocess.TimeoutExpired:
+            logger.warning(
+                "Health check timed out for %s (%s). "
+                "Hint: Ensure the CLI is installed and accessible.",
+                agent_name, check_cmd,
+            )
+        except FileNotFoundError:
+            logger.warning(
+                "Health check failed for %s: command '%s' not found. "
+                "Hint: Ensure the CLI binary is on your PATH or set the correct env var.",
+                agent_name, command,
+            )
+            return False
+        except Exception as exc:
+            logger.warning(
+                "Health check error for %s (%s): %s",
+                agent_name, check_cmd, exc,
+            )
+
+    logger.warning(
+        "Health check failed for %s: '%s' did not respond successfully. "
+        "Hint: Verify the CLI is installed correctly.",
+        agent_name, command,
+    )
+    return False
+
+
+def action_health_check(args: argparse.Namespace) -> int:
+    """Pre-flight health check that validates CLI tools are accessible."""
+    allow_simulation = os.getenv("SIMULATE_AGENTS", "0").strip() in {"1", "true", "TRUE", "True"}
+
+    if allow_simulation:
+        result = {
+            "status": "skipped",
+            "reason": "SIMULATE_AGENTS is enabled; health check skipped.",
+            "agents": {
+                "claude": {"status": "skipped", "command": ""},
+                "codex": {"status": "skipped", "command": ""},
+            },
+        }
+        if args.out:
+            write_json(Path(args.out), result)
+        print(json.dumps(result, indent=2))
+        return 0
+
+    claude_cmd = os.getenv("CLAUDE_CODE_CMD", "").strip()
+    codex_cmd = os.getenv("CODEX_CLI_CMD", "").strip()
+
+    agents: Dict[str, Dict[str, Any]] = {}
+    overall_healthy = True
+
+    for agent_name, cmd in [("claude", claude_cmd), ("codex", codex_cmd)]:
+        if not cmd:
+            agents[agent_name] = {
+                "status": "not_configured",
+                "command": "",
+                "message": f"Environment variable {'CLAUDE_CODE_CMD' if agent_name == 'claude' else 'CODEX_CLI_CMD'} is not set.",
+            }
+            overall_healthy = False
+        else:
+            healthy = check_cli_health(cmd, agent_name)
+            agents[agent_name] = {
+                "status": "healthy" if healthy else "unhealthy",
+                "command": cmd,
+            }
+            if not healthy:
+                overall_healthy = False
+
+    result = {
+        "status": "healthy" if overall_healthy else "unhealthy",
+        "agents": agents,
+    }
+
+    if args.out:
+        write_json(Path(args.out), result)
+    print(json.dumps(result, indent=2))
+    return 0 if overall_healthy else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Claude+Codex orchestrator")
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable debug logging")
@@ -1274,6 +1418,10 @@ def build_parser() -> argparse.ArgumentParser:
     retrospect.add_argument("--out", required=True)
     retrospect.set_defaults(func=action_retrospect)
 
+    health = sub.add_parser("health-check")
+    health.add_argument("--out", default="")
+    health.set_defaults(func=action_health_check)
+
     return parser
 
 
@@ -1284,7 +1432,12 @@ def main() -> int:
         parser.print_usage()
         return 1
 
-    level = logging.DEBUG if getattr(args, "verbose", False) else logging.INFO
+    if getattr(args, "verbose", False):
+        level = logging.DEBUG
+    else:
+        config_defaults = load_pipeline_config_defaults()
+        config_log_level = config_defaults.get("log_level", "INFO")
+        level = getattr(logging, str(config_log_level).upper(), logging.INFO)
     logging.basicConfig(
         level=level,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",

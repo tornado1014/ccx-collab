@@ -1,0 +1,25 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.0
+    hooks:
+      - id: ruff
+        args: [--select, "E,F,W", --ignore, E501]
+        files: ^agent/
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-json
+        files: ^agent/schemas/.*\.json$
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+
+  - repo: local
+    hooks:
+      - id: validate-schemas
+        name: Validate JSON Schemas
+        entry: python3 -c "import json, pathlib, jsonschema; [jsonschema.Draft7Validator.check_schema(json.loads(p.read_text())) for p in pathlib.Path('agent/schemas').glob('*.json')]"
+        language: system
+        files: ^agent/schemas/.*\.json$
+        pass_filenames: false

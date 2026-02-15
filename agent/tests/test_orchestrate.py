@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import logging
 import os
 import pathlib
 import subprocess
@@ -1759,3 +1760,328 @@ class TestActionRunPlanExtended:
             rc = orchestrate.action_run_plan(args)
 
         assert rc == 2
+
+
+# ---------------------------------------------------------------------------
+# 28. Rate Limiting (P1-7)
+# ---------------------------------------------------------------------------
+
+class TestRateLimiting:
+    """Tests for CLI call rate limiting in run_agent_command."""
+
+    def test_rate_limit_env_var_overrides_config(self):
+        """AGENT_RATE_LIMIT env var should take precedence over config."""
+        with mock.patch.dict(os.environ, {
+            "SIMULATE_AGENTS": "1",
+            "AGENT_RATE_LIMIT": "5",
+        }):
+            # Reset call count so rate limiting applies on 2nd call
+            orchestrate._agent_call_count = 1
+            with mock.patch("time.sleep") as mock_sleep:
+                orchestrate.run_agent_command("claude", "", {"task": "test"})
+                mock_sleep.assert_called_once_with(5.0)
+
+    def test_rate_limit_from_config_fallback(self):
+        """When AGENT_RATE_LIMIT is not set, should use pipeline-config.json value."""
+        config_defaults = {"rate_limit_seconds": 3}
+        env = os.environ.copy()
+        env.pop("AGENT_RATE_LIMIT", None)
+        env["SIMULATE_AGENTS"] = "1"
+
+        with mock.patch.dict(os.environ, env, clear=True):
+            with mock.patch.object(orchestrate, "load_pipeline_config_defaults",
+                                   return_value=config_defaults):
+                orchestrate._agent_call_count = 1
+                with mock.patch("time.sleep") as mock_sleep:
+                    orchestrate.run_agent_command("claude", "", {"task": "test"})
+                    mock_sleep.assert_called_once_with(3.0)
+
+    def test_rate_limit_not_applied_on_first_call(self):
+        """First CLI call should NOT be delayed by rate limiting."""
+        with mock.patch.dict(os.environ, {
+            "SIMULATE_AGENTS": "1",
+            "AGENT_RATE_LIMIT": "10",
+        }):
+            orchestrate._agent_call_count = 0
+            with mock.patch("time.sleep") as mock_sleep:
+                orchestrate.run_agent_command("claude", "", {"task": "test"})
+                mock_sleep.assert_not_called()
+
+    def test_rate_limit_zero_skips_sleep(self):
+        """Rate limit of 0 should not trigger sleep even on subsequent calls."""
+        with mock.patch.dict(os.environ, {
+            "SIMULATE_AGENTS": "1",
+            "AGENT_RATE_LIMIT": "0",
+        }):
+            orchestrate._agent_call_count = 5
+            with mock.patch("time.sleep") as mock_sleep:
+                orchestrate.run_agent_command("claude", "", {"task": "test"})
+                mock_sleep.assert_not_called()
+
+    def test_rate_limit_increments_call_count(self):
+        """Each call to run_agent_command should increment _agent_call_count."""
+        orchestrate._agent_call_count = 0
+        with mock.patch.dict(os.environ, {
+            "SIMULATE_AGENTS": "1",
+            "AGENT_RATE_LIMIT": "0",
+        }):
+            orchestrate.run_agent_command("claude", "", {"task": "test1"})
+            assert orchestrate._agent_call_count == 1
+            orchestrate.run_agent_command("claude", "", {"task": "test2"})
+            assert orchestrate._agent_call_count == 2
+
+
+# ---------------------------------------------------------------------------
+# 29. Pipeline Config Completion (P2-2)
+# ---------------------------------------------------------------------------
+
+class TestPipelineConfigCompletion:
+    """Tests for config-based retry_count and log_level fallbacks."""
+
+    def test_retry_count_from_config_when_env_unset(self):
+        """When AGENT_MAX_RETRIES is not set, retry_count from config should be used."""
+        config_defaults = {"retry_count": 5, "rate_limit_seconds": 0}
+        env = os.environ.copy()
+        env.pop("AGENT_MAX_RETRIES", None)
+        env["SIMULATE_AGENTS"] = "0"
+        env["AGENT_RATE_LIMIT"] = "0"
+        env["AGENT_RETRY_SLEEP"] = "0"
+
+        with mock.patch.dict(os.environ, env, clear=True):
+            with mock.patch.object(orchestrate, "load_pipeline_config_defaults",
+                                   return_value=config_defaults):
+                # Use a command that fails so we can count retries
+                result = orchestrate.run_agent_command(
+                    "codex", "/bin/sh -c 'exit 1'", {"task": "test"}
+                )
+                assert result["attempt"] == 5
+
+    def test_retry_count_env_overrides_config(self):
+        """AGENT_MAX_RETRIES env should override retry_count from config."""
+        with mock.patch.dict(os.environ, {
+            "AGENT_MAX_RETRIES": "1",
+            "AGENT_RETRY_SLEEP": "0",
+            "AGENT_RATE_LIMIT": "0",
+        }):
+            result = orchestrate.run_agent_command(
+                "codex", "/bin/sh -c 'exit 1'", {"task": "test"}
+            )
+            assert result["attempt"] == 1
+
+    def test_log_level_from_config_in_main(self, sample_task_file, tmp_results_dir):
+        """Main should read log_level from config when --verbose is not set."""
+        config_defaults = {"log_level": "WARNING"}
+        out = tmp_results_dir / "main_log_level.json"
+
+        with mock.patch.object(orchestrate, "load_pipeline_config_defaults",
+                               return_value=config_defaults):
+            with mock.patch("logging.basicConfig") as mock_basic:
+                with mock.patch("sys.argv", [
+                    "orchestrate.py", "validate-task",
+                    "--task", str(sample_task_file),
+                    "--out", str(out),
+                ]):
+                    orchestrate.main()
+                # Check that basicConfig was called with WARNING level
+                call_kwargs = mock_basic.call_args
+                assert call_kwargs[1].get("level") == logging.WARNING or \
+                       (call_kwargs.kwargs and call_kwargs.kwargs.get("level") == logging.WARNING)
+
+    def test_verbose_flag_overrides_config_log_level(self, sample_task_file, tmp_results_dir):
+        """--verbose should set DEBUG regardless of config log_level."""
+        config_defaults = {"log_level": "ERROR"}
+        out = tmp_results_dir / "main_verbose.json"
+
+        with mock.patch.object(orchestrate, "load_pipeline_config_defaults",
+                               return_value=config_defaults):
+            with mock.patch("logging.basicConfig") as mock_basic:
+                with mock.patch("sys.argv", [
+                    "orchestrate.py", "--verbose", "validate-task",
+                    "--task", str(sample_task_file),
+                    "--out", str(out),
+                ]):
+                    orchestrate.main()
+                call_kwargs = mock_basic.call_args
+                assert call_kwargs[1].get("level") == logging.DEBUG or \
+                       (call_kwargs.kwargs and call_kwargs.kwargs.get("level") == logging.DEBUG)
+
+    def test_load_pipeline_config_defaults_returns_defaults(self):
+        """load_pipeline_config_defaults should return the defaults dict."""
+        result = orchestrate.load_pipeline_config_defaults()
+        assert isinstance(result, dict)
+        # When loading real config, should have rate_limit_seconds
+        assert "rate_limit_seconds" in result
+
+    def test_load_pipeline_config_defaults_missing_file(self, tmp_path):
+        """Should return empty dict when config file does not exist."""
+        with mock.patch.object(orchestrate, "ROOT", tmp_path / "nonexistent"):
+            result = orchestrate.load_pipeline_config_defaults()
+            assert result == {}
+
+    def test_pipeline_config_has_all_required_fields(self):
+        """Verify pipeline-config.json contains all expected fields."""
+        config_path = orchestrate.ROOT / "pipeline-config.json"
+        config = orchestrate.load_json(config_path)
+        defaults = config.get("defaults", {})
+        assert "rate_limit_seconds" in defaults
+        assert "retry_count" in defaults
+        assert "log_level" in defaults
+        assert "result_retention_days" in defaults
+        assert defaults["rate_limit_seconds"] == 2
+        assert defaults["retry_count"] == 2
+        assert defaults["log_level"] == "INFO"
+        assert defaults["result_retention_days"] == 30
+
+
+# ---------------------------------------------------------------------------
+# 30. Health Check (P2-3)
+# ---------------------------------------------------------------------------
+
+class TestCheckCliHealth:
+    """Tests for the check_cli_health function."""
+
+    def test_healthy_cli_version(self):
+        """A CLI that responds to --version with exit 0 should be healthy."""
+        result = orchestrate.check_cli_health("echo", "test-agent")
+        assert result is True
+
+    def test_unhealthy_cli_not_found(self):
+        """A non-existent CLI binary should return False."""
+        result = orchestrate.check_cli_health(
+            "/nonexistent/binary/that/does/not/exist", "test-agent"
+        )
+        assert result is False
+
+    def test_unhealthy_cli_nonzero_exit(self):
+        """A CLI that returns non-zero for both --version and --help should be unhealthy."""
+        fake_proc = mock.MagicMock()
+        fake_proc.returncode = 1
+
+        with mock.patch("subprocess.run", return_value=fake_proc):
+            result = orchestrate.check_cli_health("fakecli", "test-agent")
+            assert result is False
+
+    def test_healthy_cli_help_fallback(self):
+        """If --version fails, should try --help as fallback."""
+        call_count = [0]
+
+        def mock_run(*args, **kwargs):
+            call_count[0] += 1
+            proc = mock.MagicMock()
+            cmd = args[0] if args else kwargs.get("args", [])
+            cmd_str = cmd if isinstance(cmd, str) else " ".join(cmd)
+            if "--version" in cmd_str:
+                proc.returncode = 1
+            else:
+                proc.returncode = 0
+            proc.stdout = ""
+            proc.stderr = ""
+            return proc
+
+        with mock.patch("subprocess.run", side_effect=mock_run):
+            result = orchestrate.check_cli_health("fakecli", "test-agent")
+            assert result is True
+            assert call_count[0] == 2  # tried --version, then --help
+
+    def test_timeout_returns_false(self):
+        """CLI that times out should return False."""
+        with mock.patch("subprocess.run", side_effect=subprocess.TimeoutExpired("cmd", 10)):
+            result = orchestrate.check_cli_health("slow-cli", "test-agent")
+            assert result is False
+
+
+class TestActionHealthCheck:
+    """Tests for the health-check action."""
+
+    def test_health_check_simulation_mode(self, tmp_results_dir):
+        """In SIMULATE_AGENTS mode, health check should be skipped."""
+        out = tmp_results_dir / "health.json"
+        with mock.patch.dict(os.environ, {"SIMULATE_AGENTS": "1"}):
+            args = argparse.Namespace(out=str(out))
+            rc = orchestrate.action_health_check(args)
+        assert rc == 0
+        result = json.loads(out.read_text())
+        assert result["status"] == "skipped"
+        assert result["agents"]["claude"]["status"] == "skipped"
+        assert result["agents"]["codex"]["status"] == "skipped"
+
+    def test_health_check_no_commands_configured(self, tmp_results_dir):
+        """When neither CLI is configured, should report unhealthy."""
+        out = tmp_results_dir / "health_none.json"
+        with mock.patch.dict(os.environ, {
+            "SIMULATE_AGENTS": "0",
+            "CLAUDE_CODE_CMD": "",
+            "CODEX_CLI_CMD": "",
+        }, clear=False):
+            args = argparse.Namespace(out=str(out))
+            rc = orchestrate.action_health_check(args)
+        assert rc == 1
+        result = json.loads(out.read_text())
+        assert result["status"] == "unhealthy"
+        assert result["agents"]["claude"]["status"] == "not_configured"
+        assert result["agents"]["codex"]["status"] == "not_configured"
+
+    def test_health_check_with_healthy_cli(self, tmp_results_dir):
+        """When CLIs are configured and healthy, should report healthy."""
+        out = tmp_results_dir / "health_ok.json"
+        with mock.patch.dict(os.environ, {
+            "SIMULATE_AGENTS": "0",
+            "CLAUDE_CODE_CMD": "echo",
+            "CODEX_CLI_CMD": "echo",
+        }, clear=False):
+            args = argparse.Namespace(out=str(out))
+            rc = orchestrate.action_health_check(args)
+        assert rc == 0
+        result = json.loads(out.read_text())
+        assert result["status"] == "healthy"
+        assert result["agents"]["claude"]["status"] == "healthy"
+        assert result["agents"]["codex"]["status"] == "healthy"
+
+    def test_health_check_mixed_health(self, tmp_results_dir):
+        """When one CLI is healthy and one is not, should report unhealthy overall."""
+        out = tmp_results_dir / "health_mixed.json"
+        with mock.patch.dict(os.environ, {
+            "SIMULATE_AGENTS": "0",
+            "CLAUDE_CODE_CMD": "echo",
+            "CODEX_CLI_CMD": "/nonexistent/binary",
+        }, clear=False):
+            args = argparse.Namespace(out=str(out))
+            rc = orchestrate.action_health_check(args)
+        assert rc == 1
+        result = json.loads(out.read_text())
+        assert result["status"] == "unhealthy"
+        assert result["agents"]["claude"]["status"] == "healthy"
+        assert result["agents"]["codex"]["status"] == "unhealthy"
+
+    def test_health_check_no_out_arg(self):
+        """Health check should print JSON to stdout even without --out."""
+        with mock.patch.dict(os.environ, {
+            "SIMULATE_AGENTS": "1",
+        }):
+            args = argparse.Namespace(out="")
+            with mock.patch("builtins.print") as mock_print:
+                rc = orchestrate.action_health_check(args)
+            assert rc == 0
+            printed = mock_print.call_args[0][0]
+            parsed = json.loads(printed)
+            assert parsed["status"] == "skipped"
+
+    def test_health_check_registered_in_parser(self):
+        """The health-check subcommand should be registered in the parser."""
+        parser = orchestrate.build_parser()
+        args = parser.parse_args(["health-check"])
+        assert args.func == orchestrate.action_health_check
+        assert args.out == ""
+
+    def test_health_check_via_main(self, tmp_results_dir):
+        """Health check should work when invoked via main()."""
+        out = tmp_results_dir / "health_main.json"
+        with mock.patch.dict(os.environ, {"SIMULATE_AGENTS": "1"}):
+            with mock.patch("sys.argv", [
+                "orchestrate.py", "health-check",
+                "--out", str(out),
+            ]):
+                rc = orchestrate.main()
+        assert rc == 0
+        result = json.loads(out.read_text())
+        assert result["status"] == "skipped"

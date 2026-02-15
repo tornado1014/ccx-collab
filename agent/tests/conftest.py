@@ -1,7 +1,24 @@
 """Shared test fixtures for the agent test suite."""
 import json
+import os
 import pathlib
+import sys
+from unittest import mock
+
 import pytest
+
+# Ensure orchestrate module is importable
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "scripts"))
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limit_state():
+    """Reset rate-limit global state and disable rate limiting during tests."""
+    import orchestrate
+    orchestrate._agent_call_count = 0
+    with mock.patch.dict(os.environ, {"AGENT_RATE_LIMIT": "0"}, clear=False):
+        yield
+    orchestrate._agent_call_count = 0
 
 
 @pytest.fixture

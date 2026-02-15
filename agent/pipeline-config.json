@@ -5,6 +5,10 @@
     "max_retries": 2,
     "retry_sleep_seconds": 20,
     "cli_timeout_seconds": 300,
+    "rate_limit_seconds": 2,
+    "retry_count": 2,
+    "log_level": "INFO",
+    "result_retention_days": 30,
     "results_dir_pattern": "agent/results/{os_prefix}/{work_id}"
   },
   "roles": {
