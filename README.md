@@ -158,4 +158,4 @@ SIMULATE_AGENTS=1 ./agent/scripts/pipeline-runner.sh \
 
 ## 라이선스
 
-이 프로젝트는 내부 개발 도구입니다.
+이 프로젝트는 [MIT 라이선스](LICENSE)로 배포됩니다.

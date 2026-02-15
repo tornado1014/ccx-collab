@@ -98,9 +98,9 @@ def init(ctx, task_id, title, output):
         "priority": "medium",
         "acceptance_criteria": [
             {
-                "id": f"AC-S00-1",
-                "description": "TODO: Define acceptance criteria",
-                "verification": "echo TODO",
+                "id": "AC-S00-1",
+                "description": "PLACEHOLDER: Define overall acceptance criteria",
+                "verification": "echo 'FAIL: acceptance criteria not yet defined' && exit 1",
                 "type": "automated",
             }
         ],
@@ -112,8 +112,8 @@ def init(ctx, task_id, title, output):
                 "acceptance_criteria": [
                     {
                         "id": "AC-S01-1",
-                        "description": "TODO: Define subtask criteria",
-                        "verification": "echo TODO",
+                        "description": "PLACEHOLDER: Define subtask criteria",
+                        "verification": "echo 'FAIL: subtask criteria not yet defined' && exit 1",
                         "type": "automated",
                     }
                 ],
