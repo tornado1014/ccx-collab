@@ -1,0 +1,27 @@
+{
+  "type": "object",
+  "required": ["status", "files_changed", "commands_executed", "failed_tests", "artifacts"],
+  "properties": {
+    "status": { "type": "string", "enum": ["done", "failed", "blocked"] },
+    "role": { "type": "string", "enum": ["architect", "builder"] },
+    "files_changed": { "type": "array", "items": { "type": "string" } },
+    "commands_executed": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string" },
+          "command": { "type": "string" },
+          "return_code": { "type": "integer" },
+          "stdout": { "type": "string" },
+          "stderr": { "type": "string" }
+        }
+      }
+    },
+    "failed_tests": { "type": "array" },
+    "artifacts": { "type": "array", "items": { "type": "string" } },
+    "subtask": { "type": "object" },
+    "cli_output": { "type": "object" },
+    "open_questions": { "type": "array", "items": { "type": "string" } }
+  }
+}

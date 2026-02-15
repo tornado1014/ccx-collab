@@ -1,0 +1,112 @@
+name: agent-orchestrator
+
+on:
+  workflow_dispatch:
+    inputs:
+      task_path:
+        description: "Path under agent/tasks/*.json"
+        required: true
+        default: agent/tasks/example.task.json
+      work_id:
+        description: "Optional deterministic work id"
+        required: false
+        default: ""
+  push:
+    paths:
+      - "agent/tasks/*.json"
+      - "agent/schemas/*.json"
+      - ".github/workflows/agent-orchestrator.yml"
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  pipeline:
+    name: Pipeline (${{ matrix.os_prefix }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest
+            os_prefix: mac
+            claude_wrapper_cmd: ./agent/scripts/claude-wrapper.sh
+            codex_wrapper_cmd: ./agent/scripts/codex-wrapper.sh
+          - runner: windows-latest
+            os_prefix: win
+            claude_wrapper_cmd: pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./agent/scripts/claude-wrapper.ps1
+            codex_wrapper_cmd: pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ./agent/scripts/codex-wrapper.ps1
+    runs-on: ${{ matrix.runner }}
+    env:
+      RESULTS_DIR: agent/results/${{ matrix.os_prefix }}
+      CLAUDE_CODE_CMD: ${{ matrix.claude_wrapper_cmd }}
+      CODEX_CLI_CMD: ${{ matrix.codex_wrapper_cmd }}
+      VERIFY_COMMANDS: ${{ vars.VERIFY_COMMANDS }}
+      AGENT_MAX_RETRIES: 3
+      AGENT_RETRY_SLEEP: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Resolve task and work ID
+        id: resolve
+        shell: bash
+        run: |
+          TASK_PATH="${{ github.event.inputs.task_path || 'agent/tasks/example.task.json' }}"
+          WORK_ID="${{ github.event.inputs.work_id }}"
+
+          if [ ! -f "$TASK_PATH" ]; then
+            echo "::error::Task file not found: $TASK_PATH"
+            exit 1
+          fi
+
+          if [ -z "$WORK_ID" ]; then
+            WORK_ID=$(python3 -c "
+          import hashlib, pathlib
+          p = pathlib.Path('$TASK_PATH')
+          print(hashlib.sha256(p.read_bytes()).hexdigest()[:12])
+          ")
+          fi
+
+          echo "task_path=$TASK_PATH" >> "$GITHUB_OUTPUT"
+          echo "work_id=$WORK_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Create results directory
+        shell: bash
+        run: mkdir -p "${{ env.RESULTS_DIR }}"
+
+      - name: Make wrappers executable (unix)
+        if: runner.os != 'Windows'
+        run: chmod +x agent/scripts/*.sh
+
+      # Run full pipeline in one call per OS
+      - name: Run pipeline
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          ./agent/scripts/pipeline-runner.sh \
+            --task "${{ steps.resolve.outputs.task_path }}" \
+            --work-id "${{ steps.resolve.outputs.work_id }}" \
+            --results-dir "${{ env.RESULTS_DIR }}" \
+            --mode full
+
+      - name: Run pipeline
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./agent/scripts/pipeline-runner.ps1 -Task "${{ steps.resolve.outputs.task_path }}" -WorkId "${{ steps.resolve.outputs.work_id }}" -ResultsDir "${{ env.RESULTS_DIR }}" -Mode full
+
+      # Upload artifacts (OS-separated)
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-${{ matrix.os_prefix }}-${{ steps.resolve.outputs.work_id }}
+          path: ${{ env.RESULTS_DIR }}/

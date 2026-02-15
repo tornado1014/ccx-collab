@@ -1,0 +1,74 @@
+{
+  "type": "object",
+  "required": ["task_id", "title", "scope", "acceptance_criteria", "risk_level", "priority", "subtasks"],
+  "definitions": {
+    "acceptance_criterion": {
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "object",
+          "required": ["id", "description", "verification", "type"],
+          "properties": {
+            "id": { "type": "string", "pattern": "^AC-S\\d{2}-\\d+$" },
+            "description": { "type": "string" },
+            "verification": { "type": "string", "description": "Shell command that exits 0 on success" },
+            "type": { "type": "string", "enum": ["automated", "manual"] }
+          }
+        }
+      ]
+    }
+  },
+  "properties": {
+    "task_id": { "type": "string" },
+    "title": { "type": "string" },
+    "scope": { "type": "string" },
+    "acceptance_criteria": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/acceptance_criterion" },
+      "minItems": 1
+    },
+    "platform": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } }
+      ]
+    },
+    "risk_level": { "type": "string" },
+    "priority": { "type": "string" },
+    "subtasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["title", "acceptance_criteria"],
+        "properties": {
+          "subtask_id": { "type": "string" },
+          "title": { "type": "string" },
+          "scope": { "type": "string" },
+          "role": { "type": "string", "enum": ["architect", "builder"] },
+          "owner": { "type": "string" },
+          "platform": { "type": ["string", "array"] },
+          "estimated_minutes": {
+            "type": "integer",
+            "minimum": 30,
+            "maximum": 90,
+            "description": "Target chunk size: 30-90 minutes of implementation work"
+          },
+          "depends_on": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "subtask_ids that must complete before this one starts"
+          },
+          "files_affected": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Expected files to create or modify"
+          },
+          "acceptance_criteria": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/acceptance_criterion" }
+          }
+        }
+      }
+    }
+  }
+}

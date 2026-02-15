@@ -1,0 +1,26 @@
+{
+  "type": "object",
+  "required": ["claude_review", "codex_review", "action_required", "go_no_go"],
+  "properties": {
+    "work_id": { "type": "string" },
+    "status": { "type": "string", "enum": ["ready_for_merge", "blocked"] },
+    "claude_review": {
+      "type": "object",
+      "properties": {
+        "status": { "type": "string", "enum": ["approved", "changes_required"] },
+        "notes": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "codex_review": {
+      "type": "object",
+      "properties": {
+        "status": { "type": "string", "enum": ["implemented", "needs_revision"] },
+        "notes": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "action_required": { "type": "array", "items": { "type": "string" } },
+    "open_questions": { "type": "array", "items": { "type": "string" } },
+    "go_no_go": { "type": "boolean" },
+    "references": { "type": "object" }
+  }
+}

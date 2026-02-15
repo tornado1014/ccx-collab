@@ -1,0 +1,90 @@
+{
+  "task_id": "ci-cd-collab-baseline",
+  "title": "Build cross-platform Claude/Codex orchestration baseline",
+  "scope": "Create a reproducible Plan -> Implement -> Verify -> Review -> Retrospect flow.",
+  "acceptance_criteria": [
+    {
+      "id": "AC-S00-1",
+      "description": "Task contracts are JSON-validated before implementation",
+      "verification": "python3 agent/scripts/orchestrate.py validate-task --task agent/tasks/example.task.json --out /dev/null",
+      "type": "automated"
+    },
+    {
+      "id": "AC-S00-2",
+      "description": "mac and windows runs generate deterministic subtask IDs",
+      "verification": "python3 -c \"import json,pathlib; d=json.loads(pathlib.Path('agent/tasks/example.task.json').read_text()); ids=[s['subtask_id'] for s in d['subtasks']]; assert ids==['ci-cd-collab-baseline-S01','ci-cd-collab-baseline-S02'], f'unexpected: {ids}'\"",
+      "type": "automated"
+    },
+    {
+      "id": "AC-S00-3",
+      "description": "failed verification marks workflow as blocking",
+      "verification": "python3 -c \"import json,pathlib; r=json.loads(pathlib.Path('agent/results/mac/verify_noverify.json').read_text()); assert r['status']=='failed', f'expected failed, got {r[\\\"status\\\"]}'\"",
+      "type": "automated"
+    },
+    {
+      "id": "AC-S00-4",
+      "description": "review artifact includes go/no-go flag and next action plan",
+      "verification": "python3 -c \"import json,pathlib; r=json.loads(pathlib.Path('agent/results/mac/review_test001.json').read_text()); assert 'go_no_go' in r, 'missing go_no_go'\"",
+      "type": "automated"
+    }
+  ],
+  "platform": ["both"],
+  "risk_level": "medium",
+  "priority": "high",
+  "subtasks": [
+    {
+      "subtask_id": "ci-cd-collab-baseline-S01",
+      "title": "Add orchestrator schemas and scripts",
+      "role": "builder",
+      "platform": ["both"],
+      "estimated_minutes": 60,
+      "files_affected": [
+        "agent/schemas/task.schema.json",
+        "agent/schemas/plan-result.schema.json",
+        "agent/schemas/implement-result.schema.json",
+        "agent/schemas/review-result.schema.json",
+        "agent/schemas/cli-envelope.schema.json",
+        "agent/scripts/orchestrate.py"
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-S01-1",
+          "description": "Schema files exist and are valid JSON",
+          "verification": "python3 -c \"import json,pathlib; [json.loads(f.read_text()) for f in pathlib.Path('agent/schemas').glob('*.json')]\"",
+          "type": "automated"
+        },
+        {
+          "id": "AC-S01-2",
+          "description": "Scripts write UTF-8 JSON with checksums",
+          "verification": "python3 -c \"import json,pathlib; r=json.loads(pathlib.Path('agent/results/mac/validation_test001.json').read_text()); assert 'checksum' in r, 'missing checksum'\"",
+          "type": "automated"
+        }
+      ]
+    },
+    {
+      "subtask_id": "ci-cd-collab-baseline-S02",
+      "title": "Add GitHub workflow for mac/windows orchestration",
+      "role": "builder",
+      "platform": ["both"],
+      "estimated_minutes": 45,
+      "depends_on": ["ci-cd-collab-baseline-S01"],
+      "files_affected": [
+        ".github/workflows/agent-orchestrator.yml"
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-S02-1",
+          "description": "CI runs Plan and Verify jobs in platform-specific runners",
+          "verification": "python3 -c \"import yaml,pathlib; wf=yaml.safe_load(pathlib.Path('.github/workflows/agent-orchestrator.yml').read_text()); assert 'jobs' in wf\"",
+          "type": "automated"
+        },
+        {
+          "id": "AC-S02-2",
+          "description": "Verify failure blocks merge",
+          "verification": "grep -q 'verify' .github/workflows/agent-orchestrator.yml",
+          "type": "automated"
+        }
+      ]
+    }
+  ]
+}

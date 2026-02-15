@@ -1,0 +1,15 @@
+{
+  "type": "object",
+  "required": ["status", "exit_code", "stdout", "stderr"],
+  "properties": {
+    "status": { "type": "string", "enum": ["passed", "failed"] },
+    "exit_code": { "type": "integer" },
+    "stdout": { "type": "string" },
+    "stderr": { "type": "string" },
+    "result": {
+      "type": "object",
+      "description": "Structured result from the CLI agent (plan, implement, etc.)"
+    }
+  },
+  "additionalProperties": false
+}

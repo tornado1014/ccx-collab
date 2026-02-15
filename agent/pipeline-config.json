@@ -1,0 +1,19 @@
+{
+  "pipeline_mode": "local-only",
+  "supported_modes": ["local-only", "orchestrator-centralized"],
+  "defaults": {
+    "max_retries": 2,
+    "retry_sleep_seconds": 20,
+    "results_dir_pattern": "agent/results/{os_prefix}/{work_id}"
+  },
+  "roles": {
+    "architect": {
+      "description": "Planning, design, review — typically Claude Code CLI",
+      "env_var": "CLAUDE_CODE_CMD"
+    },
+    "builder": {
+      "description": "Implementation, execution — typically Codex CLI",
+      "env_var": "CODEX_CLI_CMD"
+    }
+  }
+}

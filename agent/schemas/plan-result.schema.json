@@ -1,0 +1,86 @@
+{
+  "type": "object",
+  "required": ["status", "implementation_contract", "test_plan", "open_questions"],
+  "properties": {
+    "status": { "type": "string", "enum": ["done", "blocked"] },
+    "implementation_contract": { "type": "array", "items": { "type": "string" } },
+    "test_plan": { "type": "array", "items": { "type": "string" } },
+    "open_questions": { "type": "array", "items": { "type": "string" } },
+    "cli_output": { "type": "object" },
+    "chunks": {
+      "type": "array",
+      "description": "30-90 minute implementation chunks derived from plan decomposition",
+      "items": {
+        "type": "object",
+        "required": ["chunk_id", "title", "estimated_minutes", "role", "acceptance_criteria"],
+        "properties": {
+          "chunk_id": {
+            "type": "string",
+            "description": "Unique identifier for this chunk, e.g. task_id-C01"
+          },
+          "title": {
+            "type": "string",
+            "description": "Human-readable chunk title"
+          },
+          "estimated_minutes": {
+            "type": "integer",
+            "minimum": 30,
+            "maximum": 90,
+            "description": "Estimated implementation time in minutes (30-90)"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["architect", "builder"],
+            "description": "Which agent role executes this chunk"
+          },
+          "depends_on": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "chunk_ids that must complete before this chunk starts"
+          },
+          "scope": {
+            "type": "string",
+            "description": "Brief description of what this chunk covers"
+          },
+          "files_affected": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Expected files to create or modify"
+          },
+          "acceptance_criteria": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id", "description", "verify_command"],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Machine-readable criterion ID, e.g. AC-001"
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Human-readable description of the criterion"
+                },
+                "verify_command": {
+                  "type": "string",
+                  "description": "Shell command that returns exit 0 when criterion is met"
+                },
+                "verify_pattern": {
+                  "type": "string",
+                  "description": "Regex pattern to match in verify_command stdout for pass"
+                },
+                "category": {
+                  "type": "string",
+                  "enum": ["functional", "structural", "quality", "integration"],
+                  "description": "Category of acceptance criterion"
+                }
+              }
+            },
+            "minItems": 1,
+            "description": "Machine-readable acceptance criteria with verification commands"
+          }
+        }
+      }
+    }
+  }
+}

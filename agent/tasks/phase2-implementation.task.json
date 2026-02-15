@@ -1,0 +1,199 @@
+{
+  "task_id": "phase2-pipeline-hardening",
+  "title": "Pipeline Hardening: CLI Integration, Testing, Cross-Platform Verification",
+  "scope": "Fix nested session issues, add unit tests, verify real CLI integration, harden Windows support, set up default verification commands",
+  "acceptance_criteria": [
+    "CLI wrappers handle CLAUDECODE env var unset for nested session avoidance",
+    "Structured prompts with context are passed to CLI tools (not bare request strings)",
+    "orchestrate.py has >= 80% line coverage from unit tests",
+    "Real (non-simulated) pipeline run completes on macOS without errors",
+    "PowerShell pipeline-runner.ps1 passes Pester smoke tests",
+    "Default VERIFY_COMMANDS includes pytest + schema validation",
+    "GitHub Actions workflow uses repository secrets for CLI auth tokens"
+  ],
+  "platform": ["both"],
+  "risk_level": "medium",
+  "priority": "high",
+  "subtasks": [
+    {
+      "subtask_id": "phase2-S01",
+      "title": "Fix CLI wrapper nested session & structured prompt passing",
+      "role": "builder",
+      "platform": ["both"],
+      "scope": "Modify claude-wrapper.sh/ps1 and codex-wrapper.sh/ps1 to: (1) unset CLAUDECODE env var before invoking CLI, (2) pass full task context as structured prompt including phase, task_id, subtask details, and acceptance_criteria",
+      "estimated_minutes": 45,
+      "acceptance_criteria": [
+        {
+          "id": "AC-S01-1",
+          "description": "claude-wrapper.sh unsets CLAUDECODE before calling claude CLI",
+          "verification": "grep -q 'unset CLAUDECODE' agent/scripts/claude-wrapper.sh",
+          "type": "automated"
+        },
+        {
+          "id": "AC-S01-2",
+          "description": "Wrapper constructs multi-line prompt including phase, task context, and acceptance criteria from JSON payload",
+          "verification": "python3 -c \"import subprocess,json; r=subprocess.run(['bash','agent/scripts/claude-wrapper.sh'],input=json.dumps({'phase':'plan','request':'test','task':{'title':'t','acceptance_criteria':['a']}}),capture_output=True,text=True,env={**__import__('os').environ,'SIMULATE_AGENTS':'1'}); assert r.returncode==0\"",
+          "type": "automated"
+        },
+        {
+          "id": "AC-S01-3",
+          "description": "codex-wrapper.sh matches the same pattern",
+          "verification": "diff <(grep -v 'claude' agent/scripts/claude-wrapper.sh) <(grep -v 'codex' agent/scripts/codex-wrapper.sh) | wc -l | grep -q '^[0-9]'",
+          "type": "manual"
+        },
+        {
+          "id": "AC-S01-4",
+          "description": "PowerShell wrappers (.ps1) have equivalent CLAUDECODE handling",
+          "verification": "grep -q 'CLAUDECODE' agent/scripts/claude-wrapper.ps1",
+          "type": "automated"
+        }
+      ]
+    },
+    {
+      "subtask_id": "phase2-S02",
+      "title": "Add unit tests for orchestrate.py",
+      "role": "builder",
+      "platform": ["both"],
+      "scope": "Create agent/tests/test_orchestrate.py with pytest tests covering: normalize_task, normalize_subtask_role, parse_verify_commands, parse_cli_envelope, build_report_status, action_validate_task, action_split_task, merge-results logic",
+      "estimated_minutes": 60,
+      "acceptance_criteria": [
+        {
+          "id": "AC-S02-1",
+          "description": "test file exists at agent/tests/test_orchestrate.py",
+          "verification": "test -f agent/tests/test_orchestrate.py",
+          "type": "automated"
+        },
+        {
+          "id": "AC-S02-2",
+          "description": "All tests pass with pytest",
+          "verification": "cd /Users/earendel/Desktop/Work_with_Claude_Mac/Claude_Codex_Collaboration && python3 -m pytest agent/tests/test_orchestrate.py -v --tb=short",
+          "type": "automated"
+        },
+        {
+          "id": "AC-S02-3",
+          "description": "Line coverage >= 80%",
+          "verification": "cd /Users/earendel/Desktop/Work_with_Claude_Mac/Claude_Codex_Collaboration && python3 -m pytest agent/tests/test_orchestrate.py --cov=agent.scripts.orchestrate --cov-report=term-missing --cov-fail-under=80",
+          "type": "automated"
+        },
+        {
+          "id": "AC-S02-4",
+          "description": "Tests cover edge cases: empty subtasks, malformed JSON, missing fields",
+          "verification": "grep -c 'def test_' agent/tests/test_orchestrate.py | awk '{exit ($1 >= 15 ? 0 : 1)}'",
+          "type": "automated"
+        }
+      ]
+    },
+    {
+      "subtask_id": "phase2-S03",
+      "title": "Real CLI integration test (non-simulated macOS run)",
+      "role": "architect",
+      "platform": ["mac"],
+      "scope": "Create a minimal integration test that runs the pipeline with real CLI calls (claude --print and codex if available). Must handle CLAUDECODE env var issue. Produces real pipeline artifacts in agent/results/mac/integration/",
+      "estimated_minutes": 45,
+      "acceptance_criteria": [
+        {
+          "id": "AC-S03-1",
+          "description": "Integration test script exists at agent/scripts/integration-test.sh",
+          "verification": "test -f agent/scripts/integration-test.sh && test -x agent/scripts/integration-test.sh",
+          "type": "automated"
+        },
+        {
+          "id": "AC-S03-2",
+          "description": "Integration test completes without FATAL errors when CLI tools are available",
+          "verification": "SIMULATE_AGENTS=0 bash agent/scripts/integration-test.sh 2>&1 | grep -v FATAL | tail -1 | grep -q 'Complete'",
+          "type": "manual"
+        },
+        {
+          "id": "AC-S03-3",
+          "description": "Integration test gracefully falls back to simulation when CLI tools are unavailable",
+          "verification": "CLAUDE_CODE_CMD='' CODEX_CLI_CMD='' SIMULATE_AGENTS=1 bash agent/scripts/integration-test.sh 2>&1 | grep -q 'Complete'",
+          "type": "automated"
+        }
+      ]
+    },
+    {
+      "subtask_id": "phase2-S04",
+      "title": "Verify and fix Windows PowerShell pipeline scripts",
+      "role": "builder",
+      "platform": ["windows"],
+      "scope": "Review and fix pipeline-runner.ps1, claude-wrapper.ps1, codex-wrapper.ps1 for correctness. Add Pester smoke tests. Ensure parallel subtask execution works in PowerShell.",
+      "estimated_minutes": 60,
+      "acceptance_criteria": [
+        {
+          "id": "AC-S04-1",
+          "description": "pipeline-runner.ps1 exists and has same 7-stage flow as .sh version",
+          "verification": "grep -c 'Validating\\|Planning\\|Splitting\\|Implementing\\|Merging\\|Verifying\\|Reviewing' agent/scripts/pipeline-runner.ps1 | awk '{exit ($1 >= 5 ? 0 : 1)}'",
+          "type": "automated"
+        },
+        {
+          "id": "AC-S04-2",
+          "description": "PowerShell wrappers handle JSON stdin/stdout envelope correctly",
+          "verification": "pwsh -c \"'{\\\"request\\\":\\\"test\\\"}' | ./agent/scripts/claude-wrapper.ps1\" 2>&1 | python3 -c 'import sys,json; d=json.load(sys.stdin); assert \"status\" in d'",
+          "type": "manual"
+        },
+        {
+          "id": "AC-S04-3",
+          "description": "Pester test file exists at agent/tests/pipeline.Tests.ps1",
+          "verification": "test -f agent/tests/pipeline.Tests.ps1",
+          "type": "automated"
+        }
+      ]
+    },
+    {
+      "subtask_id": "phase2-S05",
+      "title": "Set up default VERIFY_COMMANDS and pytest-based verification",
+      "role": "architect",
+      "platform": ["both"],
+      "scope": "Add default VERIFY_COMMANDS to pipeline-config.json. Create agent/tests/conftest.py and baseline schema validation tests. Update orchestrate.py run-verify to read defaults from config when env var is empty.",
+      "estimated_minutes": 45,
+      "acceptance_criteria": [
+        {
+          "id": "AC-S05-1",
+          "description": "pipeline-config.json has default_verify_commands array",
+          "verification": "python3 -c \"import json; c=json.load(open('agent/pipeline-config.json')); assert 'default_verify_commands' in c and len(c['default_verify_commands'])>0\"",
+          "type": "automated"
+        },
+        {
+          "id": "AC-S05-2",
+          "description": "run-verify falls back to config defaults when VERIFY_COMMANDS env is empty",
+          "verification": "VERIFY_COMMANDS='' python3 agent/scripts/orchestrate.py run-verify --work-id fallback-test --platform macos --out /tmp/verify_fallback.json; python3 -c \"import json; d=json.load(open('/tmp/verify_fallback.json')); assert d.get('status')!='failed' or 'not configured' not in str(d.get('open_questions',[]))\"",
+          "type": "automated"
+        },
+        {
+          "id": "AC-S05-3",
+          "description": "conftest.py provides shared fixtures for test suite",
+          "verification": "test -f agent/tests/conftest.py && grep -q 'fixture' agent/tests/conftest.py",
+          "type": "automated"
+        }
+      ]
+    },
+    {
+      "subtask_id": "phase2-S06",
+      "title": "Improve GitHub Actions workflow with secrets and real CLI support",
+      "role": "architect",
+      "platform": ["both"],
+      "scope": "Update agent-orchestrator.yml to: use secrets for ANTHROPIC_API_KEY and OPENAI_API_KEY, add conditional real vs simulated mode, add JUnit test report upload, add status badge to README",
+      "estimated_minutes": 30,
+      "acceptance_criteria": [
+        {
+          "id": "AC-S06-1",
+          "description": "Workflow references secrets.ANTHROPIC_API_KEY and secrets.OPENAI_API_KEY",
+          "verification": "grep -q 'secrets.ANTHROPIC_API_KEY' .github/workflows/agent-orchestrator.yml",
+          "type": "automated"
+        },
+        {
+          "id": "AC-S06-2",
+          "description": "Workflow has conditional simulation mode based on secret availability",
+          "verification": "grep -q 'SIMULATE_AGENTS' .github/workflows/agent-orchestrator.yml",
+          "type": "automated"
+        },
+        {
+          "id": "AC-S06-3",
+          "description": "JUnit test results are uploaded as artifacts",
+          "verification": "grep -q 'junit' .github/workflows/agent-orchestrator.yml",
+          "type": "automated"
+        }
+      ]
+    }
+  ]
+}
