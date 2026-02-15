@@ -1,0 +1,37 @@
+# Version control
+.git
+
+# Python caches
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.ruff_cache
+.mypy_cache
+*.egg-info
+
+# Virtual environments
+.venv
+venv
+
+# Generated results (mounted at runtime instead)
+agent/results/*.json
+
+# IDE and OS files
+.idea
+.vscode
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Sisyphus state
+.sisyphus
+
+# Coverage artifacts
+.coverage
+htmlcov
+
+# Build artifacts
+dist
+build

@@ -215,6 +215,85 @@ class TestCleanupIntegration:
         assert not old_file.exists(), "Old file should have been deleted"
 
 
+class TestMergeCommand:
+    """Tests for the merge command parameter handling."""
+
+    def _create_impl_files(self, directory, work_id, count=2):
+        """Helper: create dummy implementation result files in directory."""
+        for i in range(count):
+            result = {
+                "status": "passed",
+                "subtask_id": f"{work_id}-S{i:02d}",
+                "files_changed": [f"file{i}.py"],
+                "commands_executed": [],
+            }
+            path = directory / f"implement_{work_id}_{work_id}-S{i:02d}.json"
+            path.write_text(json.dumps(result), encoding="utf-8")
+
+    def test_merge_with_explicit_input_glob(self, tmp_path):
+        """Merge with --input should use the explicit glob pattern."""
+        work_id = "merge-input-test"
+        self._create_impl_files(tmp_path, work_id)
+        out = str(tmp_path / f"implement_{work_id}.json")
+
+        runner = CliRunner()
+        result = runner.invoke(cli, [
+            "merge",
+            "--work-id", work_id,
+            "--input", str(tmp_path / f"implement_{work_id}_*.json"),
+            "--out", out,
+        ])
+        assert result.exit_code == 0, f"merge --input failed: {result.output}"
+        data = json.loads(Path(out).read_text(encoding="utf-8"))
+        # Merge wraps subtask results; status reflects the merged outcome
+        assert data["status"] in ("passed", "done"), (
+            f"Unexpected merge status: {data['status']}"
+        )
+
+    def test_merge_with_results_dir(self, tmp_path):
+        """Merge with --results-dir should auto-construct the glob."""
+        work_id = "merge-dir-test"
+        self._create_impl_files(tmp_path, work_id)
+        out = str(tmp_path / f"implement_{work_id}.json")
+
+        runner = CliRunner()
+        result = runner.invoke(cli, [
+            "merge",
+            "--work-id", work_id,
+            "--results-dir", str(tmp_path),
+            "--out", out,
+        ])
+        assert result.exit_code == 0, f"merge --results-dir failed: {result.output}"
+        data = json.loads(Path(out).read_text(encoding="utf-8"))
+        # Merge wraps subtask results; status reflects the merged outcome
+        assert data["status"] in ("passed", "done"), (
+            f"Unexpected merge status: {data['status']}"
+        )
+
+    def test_merge_help_shows_both_options(self):
+        """Merge --help should document both --input and --results-dir."""
+        runner = CliRunner()
+        result = runner.invoke(cli, ["merge", "--help"])
+        assert result.exit_code == 0
+        assert "--input" in result.output
+        assert "--results-dir" in result.output
+        # Check that the help text explains both approaches
+        assert "glob pattern" in result.output.lower() or "glob" in result.output.lower()
+
+    def test_merge_neither_option_gives_error(self, tmp_path):
+        """Merge with neither --input nor --results-dir should fail with exit code != 0."""
+        out = str(tmp_path / "merge_out.json")
+        runner = CliRunner()
+        result = runner.invoke(cli, [
+            "merge",
+            "--work-id", "no-input-test",
+            "--out", out,
+        ])
+        assert result.exit_code != 0, (
+            "merge should fail when neither --input nor --results-dir is provided"
+        )
+
+
 class TestConfigModule:
     def test_get_project_root(self):
         from cc_collab.config import get_project_root

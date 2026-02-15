@@ -2085,3 +2085,393 @@ class TestActionHealthCheck:
         assert rc == 0
         result = json.loads(out.read_text())
         assert result["status"] == "skipped"
+
+
+# ---------------------------------------------------------------------------
+# 31. Retry Logic (rate limiting, timeout, transient failures)
+# ---------------------------------------------------------------------------
+
+class TestRetryLogic:
+    """Tests for retry behavior in run_agent_command covering retry count,
+    transient failure recovery, max retries exhausted, retry sleep values,
+    rate-limit-triggered retries, and timeout-triggered retries."""
+
+    def _make_proc(self, returncode=0, stdout="", stderr=""):
+        """Create a mock subprocess.CompletedProcess."""
+        proc = mock.MagicMock()
+        proc.returncode = returncode
+        proc.stdout = stdout
+        proc.stderr = stderr
+        return proc
+
+    # -- Retry count matches AGENT_MAX_RETRIES setting --
+
+    def test_retry_count_matches_max_retries_env_1(self):
+        """With AGENT_MAX_RETRIES=1, exactly 1 attempt should be made."""
+        fail_proc = self._make_proc(returncode=1, stderr="error")
+        with mock.patch.dict(os.environ, {
+            "AGENT_MAX_RETRIES": "1",
+            "AGENT_RETRY_SLEEP": "0",
+            "AGENT_RATE_LIMIT": "0",
+        }):
+            with mock.patch("subprocess.run", return_value=fail_proc) as mock_run:
+                result = orchestrate.run_agent_command("codex", "fake-cmd", {"t": 1})
+        assert mock_run.call_count == 1
+        assert result["attempt"] == 1
+        assert result["status"] == "failed"
+
+    def test_retry_count_matches_max_retries_env_3(self):
+        """With AGENT_MAX_RETRIES=3, exactly 3 attempts should be made on failure."""
+        fail_proc = self._make_proc(returncode=1, stderr="error")
+        with mock.patch.dict(os.environ, {
+            "AGENT_MAX_RETRIES": "3",
+            "AGENT_RETRY_SLEEP": "0",
+            "AGENT_RATE_LIMIT": "0",
+        }):
+            with mock.patch("subprocess.run", return_value=fail_proc) as mock_run:
+                result = orchestrate.run_agent_command("codex", "fake-cmd", {"t": 1})
+        assert mock_run.call_count == 3
+        assert result["attempt"] == 3
+        assert result["status"] == "failed"
+
+    def test_retry_count_matches_max_retries_env_5(self):
+        """With AGENT_MAX_RETRIES=5, exactly 5 attempts should be made on persistent failure."""
+        fail_proc = self._make_proc(returncode=2, stderr="rate limited")
+        with mock.patch.dict(os.environ, {
+            "AGENT_MAX_RETRIES": "5",
+            "AGENT_RETRY_SLEEP": "0",
+            "AGENT_RATE_LIMIT": "0",
+        }):
+            with mock.patch("subprocess.run", return_value=fail_proc) as mock_run:
+                result = orchestrate.run_agent_command("claude", "fake-cmd", {"t": 1})
+        assert mock_run.call_count == 5
+        assert result["attempt"] == 5
+        assert result["status"] == "failed"
+
+    # -- Successful operation after transient failure --
+
+    def test_success_after_transient_failure(self):
+        """Command fails on first attempt but succeeds on second -- should return passed."""
+        fail_proc = self._make_proc(returncode=1, stderr="transient error")
+        success_proc = self._make_proc(returncode=0, stdout='{"result": "ok"}')
+
+        with mock.patch.dict(os.environ, {
+            "AGENT_MAX_RETRIES": "3",
+            "AGENT_RETRY_SLEEP": "0",
+            "AGENT_RATE_LIMIT": "0",
+        }):
+            with mock.patch("subprocess.run", side_effect=[fail_proc, success_proc]) as mock_run:
+                result = orchestrate.run_agent_command("claude", "fake-cmd", {"t": 1})
+        assert mock_run.call_count == 2
+        assert result["status"] == "passed"
+        assert result["attempt"] == 2
+        assert result["return_code"] == 0
+
+    def test_success_on_third_attempt(self):
+        """Command fails twice then succeeds on third -- should return passed."""
+        fail_proc = self._make_proc(returncode=1, stderr="fail")
+        success_proc = self._make_proc(returncode=0, stdout="ok")
+
+        with mock.patch.dict(os.environ, {
+            "AGENT_MAX_RETRIES": "5",
+            "AGENT_RETRY_SLEEP": "0",
+            "AGENT_RATE_LIMIT": "0",
+        }):
+            with mock.patch("subprocess.run", side_effect=[
+                fail_proc, fail_proc, success_proc
+            ]) as mock_run:
+                result = orchestrate.run_agent_command("codex", "fake-cmd", {"t": 1})
+        assert mock_run.call_count == 3
+        assert result["status"] == "passed"
+        assert result["attempt"] == 3
+
+    # -- Final failure after max retries exhausted --
+
+    def test_final_failure_after_max_retries_exhausted(self):
+        """All retries fail -- should return the last attempt's result as failed."""
+        fail_proc = self._make_proc(returncode=1, stderr="persistent error")
+        with mock.patch.dict(os.environ, {
+            "AGENT_MAX_RETRIES": "4",
+            "AGENT_RETRY_SLEEP": "0",
+            "AGENT_RATE_LIMIT": "0",
+        }):
+            with mock.patch("subprocess.run", return_value=fail_proc) as mock_run:
+                result = orchestrate.run_agent_command("codex", "fake-cmd", {"t": 1})
+        assert mock_run.call_count == 4
+        assert result["status"] == "failed"
+        assert result["attempt"] == 4
+        assert result["return_code"] == 1
+        assert "payload_checksum" in result
+
+    def test_final_failure_preserves_stderr(self):
+        """On final failure, stderr from the last attempt is preserved in result."""
+        fail_proc = self._make_proc(returncode=1, stderr="specific error detail")
+        with mock.patch.dict(os.environ, {
+            "AGENT_MAX_RETRIES": "2",
+            "AGENT_RETRY_SLEEP": "0",
+            "AGENT_RATE_LIMIT": "0",
+        }):
+            with mock.patch("subprocess.run", return_value=fail_proc):
+                result = orchestrate.run_agent_command("codex", "fake-cmd", {"t": 1})
+        assert result["stderr"] == "specific error detail"
+        assert result["status"] == "failed"
+
+    # -- Retry with different AGENT_RETRY_SLEEP values --
+
+    def test_retry_sleep_called_between_attempts(self):
+        """time.sleep should be called with the AGENT_RETRY_SLEEP value between retries."""
+        fail_proc = self._make_proc(returncode=1, stderr="error")
+        with mock.patch.dict(os.environ, {
+            "AGENT_MAX_RETRIES": "3",
+            "AGENT_RETRY_SLEEP": "15",
+            "AGENT_RATE_LIMIT": "0",
+        }):
+            with mock.patch("subprocess.run", return_value=fail_proc):
+                with mock.patch("time.sleep") as mock_sleep:
+                    orchestrate.run_agent_command("codex", "fake-cmd", {"t": 1})
+        # Sleep is called between attempts: after attempt 1 and attempt 2
+        # (not after the last attempt)
+        sleep_calls = [call.args[0] for call in mock_sleep.call_args_list]
+        assert len(sleep_calls) == 2
+        assert all(s == 15 for s in sleep_calls)
+
+    def test_retry_sleep_zero_means_no_delay(self):
+        """With AGENT_RETRY_SLEEP=0, time.sleep should still be called with 0."""
+        fail_proc = self._make_proc(returncode=1, stderr="error")
+        with mock.patch.dict(os.environ, {
+            "AGENT_MAX_RETRIES": "2",
+            "AGENT_RETRY_SLEEP": "0",
+            "AGENT_RATE_LIMIT": "0",
+        }):
+            with mock.patch("subprocess.run", return_value=fail_proc):
+                with mock.patch("time.sleep") as mock_sleep:
+                    orchestrate.run_agent_command("codex", "fake-cmd", {"t": 1})
+        # Sleep called once between attempt 1 and 2, with max(0, 0) = 0
+        sleep_calls = [call.args[0] for call in mock_sleep.call_args_list]
+        assert len(sleep_calls) == 1
+        assert sleep_calls[0] == 0
+
+    def test_retry_sleep_custom_value(self):
+        """Custom AGENT_RETRY_SLEEP=42 should be passed to time.sleep."""
+        fail_proc = self._make_proc(returncode=1, stderr="error")
+        with mock.patch.dict(os.environ, {
+            "AGENT_MAX_RETRIES": "2",
+            "AGENT_RETRY_SLEEP": "42",
+            "AGENT_RATE_LIMIT": "0",
+        }):
+            with mock.patch("subprocess.run", return_value=fail_proc):
+                with mock.patch("time.sleep") as mock_sleep:
+                    orchestrate.run_agent_command("codex", "fake-cmd", {"t": 1})
+        sleep_calls = [call.args[0] for call in mock_sleep.call_args_list]
+        assert len(sleep_calls) == 1
+        assert sleep_calls[0] == 42
+
+    def test_retry_sleep_not_called_after_success(self):
+        """When command succeeds on first attempt, time.sleep should not be called for retries."""
+        success_proc = self._make_proc(returncode=0, stdout="ok")
+        with mock.patch.dict(os.environ, {
+            "AGENT_MAX_RETRIES": "3",
+            "AGENT_RETRY_SLEEP": "30",
+            "AGENT_RATE_LIMIT": "0",
+        }):
+            with mock.patch("subprocess.run", return_value=success_proc):
+                with mock.patch("time.sleep") as mock_sleep:
+                    orchestrate.run_agent_command("codex", "fake-cmd", {"t": 1})
+        # No sleep should be called when first attempt succeeds
+        mock_sleep.assert_not_called()
+
+    # -- Rate limit error triggers retry --
+
+    def test_rate_limit_exit_code_triggers_retry(self):
+        """A non-zero exit code (simulating rate limiting) triggers retry."""
+        rate_limited_proc = self._make_proc(returncode=129, stderr="rate limit exceeded")
+        success_proc = self._make_proc(returncode=0, stdout="recovered")
+
+        with mock.patch.dict(os.environ, {
+            "AGENT_MAX_RETRIES": "3",
+            "AGENT_RETRY_SLEEP": "0",
+            "AGENT_RATE_LIMIT": "0",
+        }):
+            with mock.patch("subprocess.run", side_effect=[
+                rate_limited_proc, success_proc
+            ]) as mock_run:
+                result = orchestrate.run_agent_command("claude", "fake-cmd", {"t": 1})
+        assert mock_run.call_count == 2
+        assert result["status"] == "passed"
+        assert result["attempt"] == 2
+
+    def test_rate_limit_error_all_retries_exhausted(self):
+        """All retries return rate limit errors -- should return failed."""
+        rate_limited_proc = self._make_proc(
+            returncode=129, stderr="429 Too Many Requests"
+        )
+        with mock.patch.dict(os.environ, {
+            "AGENT_MAX_RETRIES": "3",
+            "AGENT_RETRY_SLEEP": "0",
+            "AGENT_RATE_LIMIT": "0",
+        }):
+            with mock.patch("subprocess.run", return_value=rate_limited_proc) as mock_run:
+                result = orchestrate.run_agent_command("claude", "fake-cmd", {"t": 1})
+        assert mock_run.call_count == 3
+        assert result["status"] == "failed"
+        assert result["return_code"] == 129
+        assert "429" in result["stderr"]
+
+    def test_pre_call_rate_limit_sleep_applied(self):
+        """AGENT_RATE_LIMIT should cause a sleep before non-first CLI calls."""
+        fail_proc = self._make_proc(returncode=1, stderr="error")
+        # Set call count > 0 to simulate a non-first call
+        orchestrate._agent_call_count = 2
+        with mock.patch.dict(os.environ, {
+            "AGENT_MAX_RETRIES": "1",
+            "AGENT_RETRY_SLEEP": "0",
+            "AGENT_RATE_LIMIT": "7",
+        }):
+            with mock.patch("subprocess.run", return_value=fail_proc):
+                with mock.patch("time.sleep") as mock_sleep:
+                    orchestrate.run_agent_command("codex", "fake-cmd", {"t": 1})
+        # First call in mock_sleep should be the rate-limit sleep (7.0)
+        assert mock_sleep.call_args_list[0] == mock.call(7.0)
+
+    # -- Timeout behavior --
+
+    def test_timeout_triggers_retry(self):
+        """subprocess.TimeoutExpired should trigger a retry."""
+        success_proc = self._make_proc(returncode=0, stdout="recovered after timeout")
+
+        with mock.patch.dict(os.environ, {
+            "AGENT_MAX_RETRIES": "3",
+            "AGENT_RETRY_SLEEP": "0",
+            "AGENT_RATE_LIMIT": "0",
+            "CLI_TIMEOUT_SECONDS": "10",
+        }):
+            with mock.patch("subprocess.run", side_effect=[
+                subprocess.TimeoutExpired("fake-cmd", 10),
+                success_proc,
+            ]) as mock_run:
+                with mock.patch("time.sleep"):
+                    result = orchestrate.run_agent_command("claude", "fake-cmd", {"t": 1})
+        assert mock_run.call_count == 2
+        assert result["status"] == "passed"
+        assert result["attempt"] == 2
+
+    def test_timeout_all_retries_exhausted(self):
+        """All retries time out -- should return failed with timeout details."""
+        with mock.patch.dict(os.environ, {
+            "AGENT_MAX_RETRIES": "3",
+            "AGENT_RETRY_SLEEP": "0",
+            "AGENT_RATE_LIMIT": "0",
+            "CLI_TIMEOUT_SECONDS": "5",
+        }):
+            with mock.patch("subprocess.run", side_effect=subprocess.TimeoutExpired("fake-cmd", 5)) as mock_run:
+                with mock.patch("time.sleep"):
+                    result = orchestrate.run_agent_command("claude", "fake-cmd", {"t": 1})
+        assert mock_run.call_count == 3
+        assert result["status"] == "failed"
+        assert result["return_code"] == -1
+        assert "timed out" in result["stderr"].lower()
+        assert result["attempt"] == 3
+
+    def test_timeout_sleep_between_timeout_retries(self):
+        """time.sleep should be called between timeout retries with AGENT_RETRY_SLEEP value."""
+        with mock.patch.dict(os.environ, {
+            "AGENT_MAX_RETRIES": "3",
+            "AGENT_RETRY_SLEEP": "10",
+            "AGENT_RATE_LIMIT": "0",
+            "CLI_TIMEOUT_SECONDS": "5",
+        }):
+            with mock.patch("subprocess.run", side_effect=subprocess.TimeoutExpired("fake-cmd", 5)):
+                with mock.patch("time.sleep") as mock_sleep:
+                    orchestrate.run_agent_command("claude", "fake-cmd", {"t": 1})
+        # Sleep should be called between retries (after attempt 1 and 2, not after 3)
+        sleep_calls = [call.args[0] for call in mock_sleep.call_args_list]
+        assert len(sleep_calls) == 2
+        assert all(s == 10 for s in sleep_calls)
+
+    def test_timeout_result_includes_payload_checksum(self):
+        """Timeout result should include a payload_checksum field."""
+        with mock.patch.dict(os.environ, {
+            "AGENT_MAX_RETRIES": "1",
+            "AGENT_RETRY_SLEEP": "0",
+            "AGENT_RATE_LIMIT": "0",
+            "CLI_TIMEOUT_SECONDS": "5",
+        }):
+            with mock.patch("subprocess.run", side_effect=subprocess.TimeoutExpired("fake-cmd", 5)):
+                result = orchestrate.run_agent_command("claude", "fake-cmd", {"t": 1})
+        assert "payload_checksum" in result
+        assert len(result["payload_checksum"]) == 64  # SHA-256 hex digest
+
+    def test_mixed_timeout_and_failure_then_success(self):
+        """First attempt times out, second fails with non-zero, third succeeds."""
+        success_proc = self._make_proc(returncode=0, stdout="finally ok")
+        fail_proc = self._make_proc(returncode=1, stderr="error")
+
+        with mock.patch.dict(os.environ, {
+            "AGENT_MAX_RETRIES": "4",
+            "AGENT_RETRY_SLEEP": "0",
+            "AGENT_RATE_LIMIT": "0",
+            "CLI_TIMEOUT_SECONDS": "5",
+        }):
+            with mock.patch("subprocess.run", side_effect=[
+                subprocess.TimeoutExpired("fake-cmd", 5),
+                fail_proc,
+                success_proc,
+            ]) as mock_run:
+                with mock.patch("time.sleep"):
+                    result = orchestrate.run_agent_command("claude", "fake-cmd", {"t": 1})
+        assert mock_run.call_count == 3
+        assert result["status"] == "passed"
+        assert result["attempt"] == 3
+
+    def test_elapsed_ms_tracked_on_timeout(self):
+        """Result should include a non-negative elapsed_ms even on timeout."""
+        with mock.patch.dict(os.environ, {
+            "AGENT_MAX_RETRIES": "1",
+            "AGENT_RETRY_SLEEP": "0",
+            "AGENT_RATE_LIMIT": "0",
+            "CLI_TIMEOUT_SECONDS": "5",
+        }):
+            with mock.patch("subprocess.run", side_effect=subprocess.TimeoutExpired("fake-cmd", 5)):
+                result = orchestrate.run_agent_command("claude", "fake-cmd", {"t": 1})
+        assert "elapsed_ms" in result
+        assert result["elapsed_ms"] >= 0
+
+    # -- Config-based retry count fallback --
+
+    def test_retry_count_from_pipeline_config(self):
+        """When AGENT_MAX_RETRIES is unset, retry_count from pipeline config is used."""
+        fail_proc = self._make_proc(returncode=1, stderr="error")
+        config_defaults = {"retry_count": 4, "rate_limit_seconds": 0}
+        env = os.environ.copy()
+        env.pop("AGENT_MAX_RETRIES", None)
+        env["AGENT_RETRY_SLEEP"] = "0"
+        env["AGENT_RATE_LIMIT"] = "0"
+
+        with mock.patch.dict(os.environ, env, clear=True):
+            with mock.patch.object(
+                orchestrate, "load_pipeline_config_defaults",
+                return_value=config_defaults,
+            ):
+                with mock.patch("subprocess.run", return_value=fail_proc) as mock_run:
+                    result = orchestrate.run_agent_command("codex", "fake-cmd", {"t": 1})
+        assert mock_run.call_count == 4
+        assert result["attempt"] == 4
+
+    def test_max_retries_env_overrides_pipeline_config(self):
+        """AGENT_MAX_RETRIES env var should override pipeline config retry_count."""
+        fail_proc = self._make_proc(returncode=1, stderr="error")
+        config_defaults = {"retry_count": 10, "rate_limit_seconds": 0}
+
+        with mock.patch.dict(os.environ, {
+            "AGENT_MAX_RETRIES": "2",
+            "AGENT_RETRY_SLEEP": "0",
+            "AGENT_RATE_LIMIT": "0",
+        }):
+            with mock.patch.object(
+                orchestrate, "load_pipeline_config_defaults",
+                return_value=config_defaults,
+            ):
+                with mock.patch("subprocess.run", return_value=fail_proc) as mock_run:
+                    result = orchestrate.run_agent_command("codex", "fake-cmd", {"t": 1})
+        assert mock_run.call_count == 2
+        assert result["attempt"] == 2

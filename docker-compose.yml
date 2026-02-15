@@ -1,0 +1,14 @@
+services:
+  cc-collab:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./agent/tasks:/app/agent/tasks:ro
+      - ./agent/results:/app/agent/results
+    environment:
+      - SIMULATE_AGENTS=${SIMULATE_AGENTS:-1}
+      - CLAUDE_CODE_CMD=${CLAUDE_CODE_CMD:-claude}
+      - CODEX_CLI_CMD=${CODEX_CLI_CMD:-codex}
+      - VERIFY_COMMANDS=${VERIFY_COMMANDS:-true}
+    command: ["--help"]

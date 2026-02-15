@@ -2,9 +2,12 @@
 import click
 import hashlib
 import json
+import logging
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 @click.command("run")
@@ -23,19 +26,26 @@ def run(ctx, task, work_id, results_dir, mode):
     from cc_collab.config import get_platform
     from cc_collab.output import console, print_error, print_success
 
+    logger.debug("Pipeline 'run' invoked: task=%s, work_id=%s, results_dir=%s, mode=%s",
+                 task, work_id, results_dir, mode)
+
     # Simulate mode
     if ctx.obj.get("simulate", False):
         setup_simulate_mode(True)
+        logger.debug("Simulation mode enabled for pipeline run")
 
     # Auto-generate work_id from task file hash
     task_path = Path(task)
     if not work_id:
         work_id = hashlib.sha256(task_path.read_bytes()).hexdigest()[:12]
+        logger.debug("Auto-generated work_id from task hash: %s", work_id)
 
     results = Path(results_dir)
     results.mkdir(parents=True, exist_ok=True)
+    logger.debug("Results directory ensured: %s", results)
 
     platform = get_platform()
+    logger.debug("Platform for pipeline: %s", platform)
 
     # Path templates
     validation_path = f"{results_dir}/validation_{work_id}.json"
@@ -66,11 +76,14 @@ def run(ctx, task, work_id, results_dir, mode):
 
     def _run_stage(num, label, fn):
         total = "7" if mode == "full" else "5"
+        logger.debug("Pipeline stage %s/%s starting: %s", num, total, label)
         console.print(f"[bold cyan][{num}/{total}][/bold cyan] {label}...")
         rc = fn()
         if rc != 0:
+            logger.debug("Pipeline stage '%s' failed with exit code %d", label, rc)
             print_error(f"Stage {label} failed (exit code {rc})")
             sys.exit(rc)
+        logger.debug("Pipeline stage '%s' completed successfully", label)
 
     # Stage 1: Validate
     _run_stage("1", stages[0][1], lambda: run_validate(
@@ -89,12 +102,17 @@ def run(ctx, task, work_id, results_dir, mode):
     ))
 
     # Stage 4: Implement (parallel subtasks)
+    logger.debug("Pipeline stage 4 starting: parallel subtask implementation")
     console.print(f"[bold cyan][4/{'7' if mode == 'full' else '5'}][/bold cyan] {stages[3][1]}...")
     dispatch_data = json.loads(Path(dispatch_path).read_text(encoding="utf-8"))
     subtasks = dispatch_data.get("subtasks", [])
+    logger.debug("Found %d subtask(s) in dispatch file", len(subtasks))
 
     impl_failures = 0
     if subtasks:
+        max_workers = min(4, len(subtasks))
+        logger.debug("Launching parallel execution with %d worker(s)", max_workers)
+
         def _run_subtask(st):
             subtask_id = st["subtask_id"]
             role = st.get("role", st.get("owner", "builder"))
@@ -103,13 +121,16 @@ def run(ctx, task, work_id, results_dir, mode):
             elif role == "codex":
                 role = "builder"
             out = f"{results_dir}/implement_{work_id}_{subtask_id}.json"
+            logger.debug("Subtask '%s' dispatched (role=%s, out=%s)", subtask_id, role, out)
             console.print(f"  -> {subtask_id} (role={role})")
-            return run_implement(
+            rc = run_implement(
                 task=task, dispatch=dispatch_path,
                 subtask_id=subtask_id, work_id=work_id, out=out,
             )
+            logger.debug("Subtask '%s' finished with exit code %d", subtask_id, rc)
+            return rc
 
-        with ThreadPoolExecutor(max_workers=min(4, len(subtasks))) as executor:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {executor.submit(_run_subtask, st): st for st in subtasks}
             for future in as_completed(futures):
                 rc = future.result()
@@ -117,8 +138,10 @@ def run(ctx, task, work_id, results_dir, mode):
                     impl_failures += 1
 
     if impl_failures > 0:
+        logger.debug("Implementation stage had %d failure(s)", impl_failures)
         print_error(f"{impl_failures} implementation job(s) failed.")
         sys.exit(1)
+    logger.debug("All subtask implementations completed successfully")
 
     # Stage 5: Merge
     _run_stage("5", stages[4][1], lambda: run_merge(
@@ -128,6 +151,7 @@ def run(ctx, task, work_id, results_dir, mode):
     ))
 
     if mode == "implement-only":
+        logger.debug("Pipeline ending early: implement-only mode, output=%s", implement_path)
         console.print()
         print_success(f"implement-only mode complete. Output: {implement_path}")
         return
@@ -154,6 +178,8 @@ def run(ctx, task, work_id, results_dir, mode):
         print_error(f"Retrospect failed (exit code {rc})")
         sys.exit(rc)
 
+    logger.debug("Pipeline completed successfully: review=%s, retrospect=%s",
+                 review_path, retrospect_path)
     console.print()
     console.print("[bold]=== Pipeline Complete ===[/bold]")
     print_success(f"Review:        {review_path}")
@@ -169,6 +195,7 @@ def status(ctx, work_id, results_dir):
     from cc_collab.config import get_platform
     from cc_collab.output import console
 
+    logger.debug("Pipeline 'status' invoked: work_id=%s, results_dir=%s", work_id, results_dir)
     platform = get_platform()
     results = Path(results_dir)
 

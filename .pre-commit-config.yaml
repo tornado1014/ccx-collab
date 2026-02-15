@@ -3,8 +3,13 @@ repos:
     rev: v0.1.0
     hooks:
       - id: ruff
+        name: ruff lint
         args: [--select, "E,F,W", --ignore, E501]
-        files: ^agent/
+        files: ^(agent|cc_collab)/
+      - id: ruff-format
+        name: ruff format check
+        args: [--check, --diff]
+        files: ^(agent|cc_collab)/
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0

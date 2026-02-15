@@ -1,8 +1,12 @@
 """cc-collab CLI entry point."""
+import logging
+
 import click
 
 from cc_collab import __version__
 from cc_collab.bridge import setup_simulate_mode
+
+logger = logging.getLogger(__name__)
 
 
 @click.group()
@@ -15,14 +19,23 @@ def cli(ctx, verbose, simulate):
     ctx.ensure_object(dict)
     ctx.obj["verbose"] = verbose
     ctx.obj["simulate"] = simulate
-    if simulate:
-        setup_simulate_mode(True)
+
+    # Configure root logger based on --verbose flag
     if verbose:
-        import logging
         logging.basicConfig(
             level=logging.DEBUG,
             format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         )
+        logger.debug("Verbose logging enabled")
+    else:
+        logging.basicConfig(
+            level=logging.WARNING,
+            format="%(levelname)s: %(message)s",
+        )
+
+    if simulate:
+        setup_simulate_mode(True)
+        logger.debug("Simulation mode activated")
 
 
 # Register stage commands

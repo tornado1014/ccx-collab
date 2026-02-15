@@ -216,6 +216,34 @@ cc-collab init --task-id FEAT-001 --title "새 기능"  # 태스크 템플릿 �
 | `AGENT_MAX_RETRIES` | CLI 호출 최대 재시도 횟수 | `2` |
 | `AGENT_RETRY_SLEEP` | 재시도 대기 시간 (초) | `20` |
 
+## 개발 환경 설정
+
+### Pre-commit 훅 설치
+
+이 프로젝트는 [pre-commit](https://pre-commit.com/)을 사용하여 커밋 시 코드 품질을 자동으로 검사합니다.
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+설치 후 `git commit`을 실행하면 다음 검사가 자동으로 수행됩니다:
+
+- **ruff lint** -- `agent/` 및 `cc_collab/` Python 파일의 린트 검사 (E, F, W 규칙)
+- **ruff format check** -- `agent/` 및 `cc_collab/` Python 파일의 포맷팅 검사
+- **check-json** -- `agent/schemas/` JSON 파일의 구문 검증
+- **validate-schemas** -- JSON Schema 명세 유효성 검증
+- **end-of-file-fixer / trailing-whitespace** -- 파일 끝 개행 및 후행 공백 자동 수정
+- **check-yaml** -- YAML 파일 구문 검증
+
+훅 검사를 일시적으로 건너뛰어야 할 경우 `--no-verify` 플래그를 사용할 수 있습니다:
+
+```bash
+git commit --no-verify -m "긴급 수정"
+```
+
+> **참고**: `--no-verify`는 긴급 상황에서만 사용하고, 이후 반드시 `pre-commit run --all-files`로 전체 검사를 수행하세요.
+
 ## 테스트
 
 ```bash

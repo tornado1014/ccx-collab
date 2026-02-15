@@ -3,22 +3,28 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any, Dict
 
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+logger = logging.getLogger(__name__)
+
 console = Console()
 
 
 def print_header(title: str) -> None:
     """Print a styled header panel."""
+    logger.debug("Header: %s", title)
     console.print(Panel(f"[bold]{title}[/bold]", style="cyan"))
 
 
 def print_stage_result(stage: str, exit_code: int, output_path: str = "") -> None:
     """Show stage completion with status icon."""
+    logger.debug("Stage result: stage=%s, exit_code=%d, output_path=%s",
+                 stage, exit_code, output_path)
     if exit_code == 0:
         icon = "[green]✓[/green]"
         status = "[green]passed[/green]"
@@ -42,6 +48,7 @@ def print_pipeline_header(task: str, work_id: str, mode: str) -> None:
 
 def print_error(message: str) -> None:
     """Print red error message."""
+    logger.debug("Error output: %s", message)
     console.print(f"[bold red]Error:[/bold red] {message}")
 
 
