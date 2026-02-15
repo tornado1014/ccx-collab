@@ -1,0 +1,40 @@
+{
+  "type": "object",
+  "required": ["status", "summary", "next_plan", "evidence"],
+  "properties": {
+    "work_id": { "type": "string" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "status": { "type": "string", "enum": ["ready", "blocked"] },
+    "summary": {
+      "type": "object",
+      "required": ["go_no_go", "issues_count", "next_action_count"],
+      "properties": {
+        "go_no_go": { "type": "boolean" },
+        "issues_count": { "type": "integer", "minimum": 0 },
+        "next_action_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "next_plan": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["index", "type", "title", "owner", "priority"],
+        "properties": {
+          "index": { "type": "integer", "minimum": 1 },
+          "type": { "type": "string", "enum": ["rework", "observe"] },
+          "title": { "type": "string" },
+          "owner": { "type": "string", "enum": ["claude", "codex", "both"] },
+          "priority": { "type": "string", "enum": ["high", "medium", "low"] }
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["review_reference", "questions"],
+      "properties": {
+        "review_reference": { "type": "string" },
+        "questions": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

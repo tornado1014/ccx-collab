@@ -351,3 +351,251 @@ class TestReviewResultSchema:
         }
         with pytest.raises(jsonschema.ValidationError):
             jsonschema.validate(doc, schema)
+
+
+# ---------------------------------------------------------------------------
+# retrospect.schema.json
+# ---------------------------------------------------------------------------
+
+class TestRetrospectSchema:
+    @pytest.fixture
+    def schema(self):
+        return load_schema("retrospect.schema.json")
+
+    def _make_valid_doc(self, **overrides):
+        """Return a fully valid retrospect document, with optional overrides."""
+        doc = {
+            "work_id": "retro-001",
+            "generated_at": "2026-02-15T12:00:00Z",
+            "status": "ready",
+            "summary": {
+                "go_no_go": True,
+                "issues_count": 1,
+                "next_action_count": 2,
+            },
+            "next_plan": [
+                {
+                    "index": 1,
+                    "type": "rework",
+                    "title": "Fix failing integration test",
+                    "owner": "codex",
+                    "priority": "high",
+                },
+                {
+                    "index": 2,
+                    "type": "observe",
+                    "title": "Monitor CI after merge",
+                    "owner": "claude",
+                    "priority": "medium",
+                },
+            ],
+            "evidence": {
+                "review_reference": "work/retro-001/review.json",
+                "questions": ["Is the API contract stable?"],
+            },
+        }
+        doc.update(overrides)
+        return doc
+
+    # -- valid cases ---------------------------------------------------------
+
+    def test_valid_full_document(self, schema):
+        doc = self._make_valid_doc()
+        jsonschema.validate(doc, schema)  # Should not raise
+
+    def test_valid_minimal_required_fields(self, schema):
+        doc = {
+            "status": "ready",
+            "summary": {
+                "go_no_go": False,
+                "issues_count": 0,
+                "next_action_count": 0,
+            },
+            "next_plan": [],
+            "evidence": {
+                "review_reference": "review.json",
+                "questions": [],
+            },
+        }
+        jsonschema.validate(doc, schema)
+
+    def test_valid_blocked_status(self, schema):
+        doc = self._make_valid_doc(status="blocked")
+        jsonschema.validate(doc, schema)
+
+    def test_valid_owner_both(self, schema):
+        doc = self._make_valid_doc(
+            next_plan=[
+                {
+                    "index": 1,
+                    "type": "rework",
+                    "title": "Pair refactoring session",
+                    "owner": "both",
+                    "priority": "low",
+                }
+            ]
+        )
+        jsonschema.validate(doc, schema)
+
+    def test_valid_without_optional_work_id_and_generated_at(self, schema):
+        doc = {
+            "status": "ready",
+            "summary": {
+                "go_no_go": False,
+                "issues_count": 0,
+                "next_action_count": 0,
+            },
+            "next_plan": [],
+            "evidence": {
+                "review_reference": "r.json",
+                "questions": [],
+            },
+        }
+        jsonschema.validate(doc, schema)
+
+    # -- invalid: missing required top-level fields -------------------------
+
+    def test_invalid_missing_status(self, schema):
+        doc = self._make_valid_doc()
+        del doc["status"]
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(doc, schema)
+
+    def test_invalid_missing_summary(self, schema):
+        doc = self._make_valid_doc()
+        del doc["summary"]
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(doc, schema)
+
+    def test_invalid_missing_next_plan(self, schema):
+        doc = self._make_valid_doc()
+        del doc["next_plan"]
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(doc, schema)
+
+    def test_invalid_missing_evidence(self, schema):
+        doc = self._make_valid_doc()
+        del doc["evidence"]
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(doc, schema)
+
+    # -- invalid: bad enum values -------------------------------------------
+
+    def test_invalid_bad_status_enum(self, schema):
+        doc = self._make_valid_doc(status="pending")
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(doc, schema)
+
+    def test_invalid_bad_action_type(self, schema):
+        doc = self._make_valid_doc(
+            next_plan=[
+                {
+                    "index": 1,
+                    "type": "rewrite",
+                    "title": "Bad type",
+                    "owner": "claude",
+                    "priority": "high",
+                }
+            ]
+        )
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(doc, schema)
+
+    def test_invalid_bad_owner(self, schema):
+        doc = self._make_valid_doc(
+            next_plan=[
+                {
+                    "index": 1,
+                    "type": "rework",
+                    "title": "Bad owner",
+                    "owner": "human",
+                    "priority": "high",
+                }
+            ]
+        )
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(doc, schema)
+
+    def test_invalid_bad_priority(self, schema):
+        doc = self._make_valid_doc(
+            next_plan=[
+                {
+                    "index": 1,
+                    "type": "observe",
+                    "title": "Bad priority",
+                    "owner": "codex",
+                    "priority": "critical",
+                }
+            ]
+        )
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(doc, schema)
+
+    # -- invalid: wrong types -----------------------------------------------
+
+    def test_invalid_go_no_go_not_boolean(self, schema):
+        doc = self._make_valid_doc()
+        doc["summary"]["go_no_go"] = "yes"
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(doc, schema)
+
+    def test_invalid_issues_count_negative(self, schema):
+        doc = self._make_valid_doc()
+        doc["summary"]["issues_count"] = -1
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(doc, schema)
+
+    def test_invalid_next_action_count_not_integer(self, schema):
+        doc = self._make_valid_doc()
+        doc["summary"]["next_action_count"] = 1.5
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(doc, schema)
+
+    def test_invalid_action_index_zero(self, schema):
+        doc = self._make_valid_doc(
+            next_plan=[
+                {
+                    "index": 0,
+                    "type": "rework",
+                    "title": "Index too low",
+                    "owner": "claude",
+                    "priority": "high",
+                }
+            ]
+        )
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(doc, schema)
+
+    def test_invalid_questions_not_strings(self, schema):
+        doc = self._make_valid_doc()
+        doc["evidence"]["questions"] = [42, True]
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(doc, schema)
+
+    # -- invalid: missing required fields in nested objects -----------------
+
+    def test_invalid_summary_missing_go_no_go(self, schema):
+        doc = self._make_valid_doc()
+        del doc["summary"]["go_no_go"]
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(doc, schema)
+
+    def test_invalid_action_missing_title(self, schema):
+        doc = self._make_valid_doc(
+            next_plan=[
+                {
+                    "index": 1,
+                    "type": "rework",
+                    "owner": "codex",
+                    "priority": "high",
+                }
+            ]
+        )
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(doc, schema)
+
+    def test_invalid_evidence_missing_review_reference(self, schema):
+        doc = self._make_valid_doc()
+        del doc["evidence"]["review_reference"]
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(doc, schema)

@@ -4,6 +4,7 @@
   "defaults": {
     "max_retries": 2,
     "retry_sleep_seconds": 20,
+    "cli_timeout_seconds": 300,
     "results_dir_pattern": "agent/results/{os_prefix}/{work_id}"
   },
   "roles": {

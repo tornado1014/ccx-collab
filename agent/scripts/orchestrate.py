@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import logging
 import os
 import pathlib
 import shlex
@@ -15,6 +16,8 @@ import time
 import datetime
 import platform as _platform
 from typing import Any, Dict, List, Optional, Sequence, Tuple
+
+logger = logging.getLogger("orchestrate")
 
 try:
     import jsonschema
@@ -180,6 +183,7 @@ def command_output_trace(cmd: str) -> str:
 def run_agent_command(agent: str, command: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     max_retries = int(os.getenv("AGENT_MAX_RETRIES", "2"))
     retry_wait = int(os.getenv("AGENT_RETRY_SLEEP", "20"))
+    cli_timeout = int(os.getenv("CLI_TIMEOUT_SECONDS", "300"))
     allow_simulation = os.getenv("SIMULATE_AGENTS", "0").strip() in {"1", "true", "TRUE", "True"}
 
     if not command:
@@ -203,24 +207,43 @@ def run_agent_command(agent: str, command: str, payload: Dict[str, Any]) -> Dict
 
     for attempt in range(1, max_retries + 1):
         start = time.perf_counter()
-        if _platform.system() == "Windows":
-            proc = subprocess.run(
-                command,
-                shell=True,
-                input=payload_text,
-                text=True,
-                capture_output=True,
-                env=os.environ.copy(),
-            )
-        else:
-            proc = subprocess.run(
-                shlex.split(command),
-                shell=False,
-                input=payload_text,
-                text=True,
-                capture_output=True,
-                env=os.environ.copy(),
-            )
+        try:
+            if _platform.system() == "Windows":
+                proc = subprocess.run(
+                    command,
+                    shell=True,
+                    input=payload_text,
+                    text=True,
+                    capture_output=True,
+                    env=os.environ.copy(),
+                    timeout=cli_timeout,
+                )
+            else:
+                proc = subprocess.run(
+                    shlex.split(command),
+                    shell=False,
+                    input=payload_text,
+                    text=True,
+                    capture_output=True,
+                    env=os.environ.copy(),
+                    timeout=cli_timeout,
+                )
+        except subprocess.TimeoutExpired:
+            elapsed_ms = int((time.perf_counter() - start) * 1000)
+            result = {
+                "status": "failed",
+                "command": command,
+                "return_code": -1,
+                "stdout": "",
+                "stderr": f"Command timed out after {cli_timeout}s",
+                "attempt": attempt,
+                "elapsed_ms": elapsed_ms,
+                "payload_checksum": sha256_bytes(payload_text.encode("utf-8")),
+            }
+            last = result
+            if attempt < max_retries:
+                time.sleep(max(0, retry_wait))
+            continue
         elapsed_ms = int((time.perf_counter() - start) * 1000)
         stdout_text = proc.stdout or ""
         stderr_text = proc.stderr or ""
@@ -347,7 +370,7 @@ def action_split_task(args: argparse.Namespace) -> int:
     task = load_json(pathlib.Path(args.task))
     task, errors = normalize_task(task)
     if errors:
-        print("Task is invalid. Run validate-task first.")
+        logger.warning("Task is invalid. Run validate-task first.")
         return 2
 
     plan_file = pathlib.Path(args.plan) if args.plan else None
@@ -635,13 +658,13 @@ def action_run_implement(args: argparse.Namespace) -> int:
                 break
 
     if subtask is None:
-        print(f"ERROR: dispatch/subtask id missing: '{args.subtask_id}'", file=sys.stderr)
+        logger.error("dispatch/subtask id missing: '%s'", args.subtask_id)
         available = [s.get("subtask_id") for s in dispatch_subtasks] if dispatch_subtasks else [s.get("subtask_id") for s in task.get("subtasks", [])]
-        print(f"Available: {available}", file=sys.stderr)
+        logger.error("Available: %s", available)
         return 1
 
     if dispatch_subtasks and not any(item.get("subtask_id") == args.subtask_id for item in dispatch_subtasks):
-        print(f"WARN: dispatch does not contain subtask '{args.subtask_id}'; falling back to task definition.", file=sys.stderr)
+        logger.warning("dispatch does not contain subtask '%s'; falling back to task definition.", args.subtask_id)
 
     work_id = args.work_id or task.get("task_id", "task-unknown")
     role = normalize_subtask_role(subtask)
@@ -719,7 +742,7 @@ def action_merge_results(args: argparse.Namespace) -> int:
     try:
         lock = acquire_lock(pathlib.Path(args.out))
     except Exception as exc:
-        print(f"ERROR: unable to acquire merge lock for {args.out}: {exc}", file=sys.stderr)
+        logger.error("unable to acquire merge lock for %s: %s", args.out, exc)
         return 1
 
     try:
@@ -747,7 +770,7 @@ def action_merge_results(args: argparse.Namespace) -> int:
                 try:
                     dispatch_payload = load_json(dispatch_path)
                 except Exception as exc:
-                    print(f"ERROR: failed to load dispatch file '{args.dispatch}': {exc}", file=sys.stderr)
+                    logger.error("failed to load dispatch file '%s': %s", args.dispatch, exc)
                     dispatch_load_failed = True
                 else:
                     dispatch_items = dispatch_payload.get("subtasks", [])
@@ -758,7 +781,7 @@ def action_merge_results(args: argparse.Namespace) -> int:
                             if isinstance(item, dict) and item.get("subtask_id")
                         ]
             else:
-                print(f"ERROR: dispatch file not found: '{args.dispatch}'", file=sys.stderr)
+                logger.error("dispatch file not found: '%s'", args.dispatch)
                 dispatch_load_failed = True
 
         result_by_subtask_id: Dict[str, Dict[str, Any]] = {}
@@ -866,13 +889,29 @@ def action_run_verify(args: argparse.Namespace) -> int:
     failed_tests: List[Dict[str, Any]] = []
     failures = 0
     start_total = time.perf_counter()
+    cli_timeout = int(os.getenv("CLI_TIMEOUT_SECONDS", "300"))
 
     for command in commands:
         start = time.perf_counter()
-        if _platform.system() == "Windows":
-            proc = subprocess.run(command, shell=True, text=True, capture_output=True, env=os.environ.copy())
-        else:
-            proc = subprocess.run(shlex.split(command), shell=False, text=True, capture_output=True, env=os.environ.copy())
+        try:
+            if _platform.system() == "Windows":
+                proc = subprocess.run(command, shell=True, text=True, capture_output=True, env=os.environ.copy(), timeout=cli_timeout)
+            else:
+                proc = subprocess.run(shlex.split(command), shell=False, text=True, capture_output=True, env=os.environ.copy(), timeout=cli_timeout)
+        except subprocess.TimeoutExpired:
+            elapsed_ms = int((time.perf_counter() - start) * 1000)
+            item = {
+                "command": command,
+                "status": "failed",
+                "return_code": -1,
+                "time_ms": elapsed_ms,
+                "stdout": "",
+                "stderr": f"Command timed out after {cli_timeout}s",
+            }
+            command_results.append(item)
+            failures += 1
+            failed_tests.append(item)
+            continue
         elapsed_ms = int((time.perf_counter() - start) * 1000)
         status = "passed" if proc.returncode == 0 else "failed"
         item = {
@@ -1036,6 +1075,7 @@ def action_retrospect(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Claude+Codex orchestrator")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Enable debug logging")
     sub = parser.add_subparsers(dest="command")
 
     validate = sub.add_parser("validate-task")
@@ -1103,6 +1143,13 @@ def main() -> int:
     if not getattr(args, "func", None):
         parser.print_usage()
         return 1
+
+    level = logging.DEBUG if getattr(args, "verbose", False) else logging.INFO
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%S",
+    )
 
     try:
         return int(args.func(args))

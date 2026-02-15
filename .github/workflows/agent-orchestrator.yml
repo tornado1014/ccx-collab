@@ -58,6 +58,20 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Lint Python (ruff)
+        run: |
+          pip install ruff
+          ruff check agent/scripts/ agent/tests/ --select E,F,W --ignore E501
+
+      - name: Lint shell scripts (shellcheck)
+        if: runner.os != 'Windows'
+        run: |
+          if command -v shellcheck &>/dev/null; then
+            shellcheck agent/scripts/*.sh || true
+          else
+            echo "shellcheck not available, skipping"
+          fi
+
       - name: Resolve task and work ID
         id: resolve
         shell: bash
