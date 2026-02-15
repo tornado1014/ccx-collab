@@ -4,8 +4,23 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import pytest
 from pathlib import Path
+
+
+def pytest_configure(config):
+    """Register custom markers."""
+    config.addinivalue_line(
+        "markers",
+        "windows: Windows-specific tests (deselect with '-m not windows')",
+    )
+
+
+@pytest.fixture
+def is_windows():
+    """Return True if running on Windows."""
+    return sys.platform == "win32"
 
 
 @pytest.fixture

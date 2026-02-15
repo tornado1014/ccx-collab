@@ -1,27 +1,127 @@
 """Utility commands: health, cleanup, init."""
 import click
+import io
 import json
 import logging
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 
+def _run_single_health_check(out: str = "") -> dict:
+    """Run a single health check and capture structured result.
+
+    Returns a dict with 'rc' (int) and 'data' (parsed JSON from health check).
+    """
+    from cc_collab.bridge import run_health_check
+
+    # Capture stdout from orchestrate's print() calls
+    old_stdout = sys.stdout
+    sys.stdout = captured = io.StringIO()
+    try:
+        rc = run_health_check(out=out)
+    finally:
+        sys.stdout = old_stdout
+
+    raw = captured.getvalue().strip()
+    try:
+        data = json.loads(raw)
+    except (json.JSONDecodeError, ValueError):
+        data = {"raw_output": raw}
+
+    return {"rc": rc, "data": data}
+
+
+def _format_json_result(check_data: dict) -> dict:
+    """Build structured JSON output for a single health check."""
+    ts = datetime.now(timezone.utc).isoformat()
+    status_value = check_data.get("status", "unknown")
+    # Normalize: treat anything other than "healthy" as "unhealthy"
+    # but preserve "skipped" for simulation mode
+    if status_value not in ("healthy", "skipped"):
+        status_value = "unhealthy"
+    return {
+        "timestamp": ts,
+        "status": status_value,
+        "checks": check_data.get("agents", check_data),
+    }
+
+
 @click.command()
 @click.option("--out", default="", help="Output path for health check results")
+@click.option("--continuous", is_flag=True, help="Run health checks in a loop until interrupted")
+@click.option("--interval", default=60, type=int, help="Seconds between checks in continuous mode (default: 60)")
+@click.option("--json", "json_output", is_flag=True, help="Output results as JSON for machine parsing")
 @click.pass_context
-def health(ctx, out):
+def health(ctx, out, continuous, interval, json_output):
     """Check CLI tool health (Claude Code, Codex CLI)."""
-    from cc_collab.bridge import run_health_check
     from cc_collab.output import print_stage_result
 
-    logger.debug("Health check starting: out=%s", out)
-    rc = run_health_check(out=out)
-    print_stage_result("health", rc, out)
-    if rc != 0:
-        sys.exit(rc)
+    logger.debug("Health check starting: out=%s, continuous=%s, interval=%d, json=%s",
+                 out, continuous, interval, json_output)
+
+    if continuous:
+        total_checks = 0
+        total_passes = 0
+        total_failures = 0
+
+        try:
+            while True:
+                result = _run_single_health_check(out=out)
+                rc = result["rc"]
+                total_checks += 1
+                if rc == 0:
+                    total_passes += 1
+                else:
+                    total_failures += 1
+
+                ts_str = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+                if json_output:
+                    structured = _format_json_result(result["data"])
+                    click.echo(json.dumps(structured))
+                else:
+                    status_label = "HEALTHY" if rc == 0 else "UNHEALTHY"
+                    click.echo(f"[{ts_str}] Health check: {status_label}")
+                    # Print captured health check details
+                    raw_data = result["data"]
+                    if isinstance(raw_data, dict) and "raw_output" not in raw_data:
+                        click.echo(json.dumps(raw_data, indent=2))
+                    elif isinstance(raw_data, dict) and raw_data.get("raw_output"):
+                        click.echo(raw_data["raw_output"])
+                    print_stage_result("health", rc, out)
+
+                time.sleep(interval)
+        except KeyboardInterrupt:
+            click.echo("")
+            click.echo(f"--- Continuous Health Check Summary ---")
+            click.echo(f"Total checks: {total_checks}")
+            click.echo(f"Passes:       {total_passes}")
+            click.echo(f"Failures:     {total_failures}")
+            # Exit cleanly
+            return
+
+    else:
+        result = _run_single_health_check(out=out)
+        rc = result["rc"]
+
+        if json_output:
+            structured = _format_json_result(result["data"])
+            click.echo(json.dumps(structured))
+        else:
+            # Print the captured health check output (preserves "skipped" etc.)
+            raw_data = result["data"]
+            if isinstance(raw_data, dict) and "raw_output" not in raw_data:
+                click.echo(json.dumps(raw_data, indent=2))
+            elif isinstance(raw_data, dict) and raw_data.get("raw_output"):
+                click.echo(raw_data["raw_output"])
+            print_stage_result("health", rc, out)
+
+        if rc != 0:
+            sys.exit(rc)
 
 
 @click.command()

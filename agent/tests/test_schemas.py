@@ -2,11 +2,14 @@
 
 import json
 import pathlib
+import re
 
 import jsonschema
 import pytest
 
 SCHEMA_DIR = pathlib.Path(__file__).resolve().parents[1] / "schemas"
+
+ALL_SCHEMA_FILES = sorted(SCHEMA_DIR.glob("*.schema.json"))
 
 
 def load_schema(name: str) -> dict:
@@ -599,3 +602,200 @@ class TestRetrospectSchema:
         del doc["evidence"]["review_reference"]
         with pytest.raises(jsonschema.ValidationError):
             jsonschema.validate(doc, schema)
+
+
+# ---------------------------------------------------------------------------
+# Schema version management tests
+# ---------------------------------------------------------------------------
+
+class TestSchemaVersionManagement:
+    """Verify that all schemas have proper version metadata ($id, $schema, version property)."""
+
+    @pytest.fixture(params=[p.name for p in ALL_SCHEMA_FILES], ids=[p.stem for p in ALL_SCHEMA_FILES])
+    def schema_entry(self, request):
+        """Parametrized fixture yielding (filename, schema_dict) for each schema."""
+        name = request.param
+        return name, load_schema(name)
+
+    def test_all_schemas_have_dollar_id(self, schema_entry):
+        name, schema = schema_entry
+        assert "$id" in schema, f"{name} is missing the $id field"
+
+    def test_dollar_id_contains_version_string(self, schema_entry):
+        name, schema = schema_entry
+        dollar_id = schema.get("$id", "")
+        # Version must be a semver-like string (vX.Y.Z) in the URI
+        assert re.search(r"/v\d+\.\d+\.\d+$", dollar_id), (
+            f"{name}: $id '{dollar_id}' does not end with a version like /vX.Y.Z"
+        )
+
+    def test_dollar_id_uri_format(self, schema_entry):
+        name, schema = schema_entry
+        dollar_id = schema.get("$id", "")
+        assert dollar_id.startswith("https://cc-collab.dev/schemas/"), (
+            f"{name}: $id should start with https://cc-collab.dev/schemas/"
+        )
+
+    def test_all_schemas_have_dollar_schema(self, schema_entry):
+        name, schema = schema_entry
+        assert "$schema" in schema, f"{name} is missing the $schema field"
+        assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema", (
+            f"{name}: $schema should reference draft/2020-12"
+        )
+
+    def test_version_property_defined(self, schema_entry):
+        name, schema = schema_entry
+        props = schema.get("properties", {})
+        assert "version" in props, f"{name} does not define a 'version' property"
+        version_prop = props["version"]
+        assert version_prop.get("type") == "string", (
+            f"{name}: version property should have type 'string'"
+        )
+        assert "const" in version_prop, (
+            f"{name}: version property should have a 'const' constraint"
+        )
+
+    def test_version_const_matches_id(self, schema_entry):
+        """The const version in properties must match the version in $id."""
+        name, schema = schema_entry
+        dollar_id = schema.get("$id", "")
+        id_match = re.search(r"/v(\d+\.\d+\.\d+)$", dollar_id)
+        assert id_match, f"{name}: cannot extract version from $id"
+        id_version = id_match.group(1)
+        const_version = schema.get("properties", {}).get("version", {}).get("const")
+        assert const_version == id_version, (
+            f"{name}: version const '{const_version}' does not match $id version '{id_version}'"
+        )
+
+    def test_version_is_optional_for_backward_compat(self, schema_entry):
+        """Version must NOT be in the required list (backward compatibility)."""
+        name, schema = schema_entry
+        required = schema.get("required", [])
+        assert "version" not in required, (
+            f"{name}: 'version' should not be required (backward compatibility)"
+        )
+
+    def test_version_property_has_default(self, schema_entry):
+        name, schema = schema_entry
+        version_prop = schema.get("properties", {}).get("version", {})
+        assert "default" in version_prop, (
+            f"{name}: version property should have a default value"
+        )
+        assert version_prop["default"] == version_prop.get("const"), (
+            f"{name}: version default should match the const value"
+        )
+
+
+class TestSchemaVersionBackwardCompatibility:
+    """Verify that documents without a version field still validate against updated schemas."""
+
+    def test_task_without_version_still_valid(self):
+        schema = load_schema("task.schema.json")
+        doc = {
+            "task_id": "t1",
+            "title": "T",
+            "scope": "s",
+            "acceptance_criteria": ["AC"],
+            "risk_level": "low",
+            "priority": "high",
+            "subtasks": [{"title": "S", "acceptance_criteria": ["AC"]}],
+        }
+        jsonschema.validate(doc, schema)
+
+    def test_task_with_version_valid(self):
+        schema = load_schema("task.schema.json")
+        doc = {
+            "version": "1.0.0",
+            "task_id": "t1",
+            "title": "T",
+            "scope": "s",
+            "acceptance_criteria": ["AC"],
+            "risk_level": "low",
+            "priority": "high",
+            "subtasks": [{"title": "S", "acceptance_criteria": ["AC"]}],
+        }
+        jsonschema.validate(doc, schema)
+
+    def test_task_with_wrong_version_fails(self):
+        schema = load_schema("task.schema.json")
+        doc = {
+            "version": "2.0.0",
+            "task_id": "t1",
+            "title": "T",
+            "scope": "s",
+            "acceptance_criteria": ["AC"],
+            "risk_level": "low",
+            "priority": "high",
+            "subtasks": [{"title": "S", "acceptance_criteria": ["AC"]}],
+        }
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(doc, schema)
+
+    def test_cli_envelope_without_version_still_valid(self):
+        schema = load_schema("cli-envelope.schema.json")
+        doc = {
+            "status": "passed",
+            "exit_code": 0,
+            "stdout": "ok",
+            "stderr": "",
+        }
+        jsonschema.validate(doc, schema)
+
+    def test_cli_envelope_with_version_valid(self):
+        schema = load_schema("cli-envelope.schema.json")
+        doc = {
+            "version": "1.0.0",
+            "status": "passed",
+            "exit_code": 0,
+            "stdout": "ok",
+            "stderr": "",
+        }
+        jsonschema.validate(doc, schema)
+
+    def test_plan_result_without_version_still_valid(self):
+        schema = load_schema("plan-result.schema.json")
+        doc = {
+            "status": "done",
+            "implementation_contract": ["Build X"],
+            "test_plan": ["pytest"],
+            "open_questions": [],
+        }
+        jsonschema.validate(doc, schema)
+
+    def test_implement_result_without_version_still_valid(self):
+        schema = load_schema("implement-result.schema.json")
+        doc = {
+            "status": "done",
+            "files_changed": ["a.py"],
+            "commands_executed": [],
+            "failed_tests": [],
+            "artifacts": [],
+        }
+        jsonschema.validate(doc, schema)
+
+    def test_review_result_without_version_still_valid(self):
+        schema = load_schema("review-result.schema.json")
+        doc = {
+            "claude_review": {"status": "approved", "notes": []},
+            "codex_review": {"status": "implemented", "notes": []},
+            "action_required": [],
+            "go_no_go": True,
+        }
+        jsonschema.validate(doc, schema)
+
+    def test_retrospect_without_version_still_valid(self):
+        schema = load_schema("retrospect.schema.json")
+        doc = {
+            "status": "ready",
+            "summary": {
+                "go_no_go": False,
+                "issues_count": 0,
+                "next_action_count": 0,
+            },
+            "next_plan": [],
+            "evidence": {
+                "review_reference": "r.json",
+                "questions": [],
+            },
+        }
+        jsonschema.validate(doc, schema)

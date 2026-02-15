@@ -1,7 +1,10 @@
 {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cc-collab.dev/schemas/implement-result/v1.0.0",
   "type": "object",
   "required": ["status", "files_changed", "commands_executed", "failed_tests", "artifacts"],
   "properties": {
+    "version": { "type": "string", "const": "1.0.0", "default": "1.0.0" },
     "status": { "type": "string", "enum": ["done", "failed", "blocked"] },
     "role": { "type": "string", "enum": ["architect", "builder"] },
     "files_changed": { "type": "array", "items": { "type": "string" } },

@@ -143,6 +143,35 @@ class TestHealthCommand:
         result = runner.invoke(cli, ["health", "--help"])
         assert result.exit_code == 0
 
+    def test_health_continuous_help_shows_interval(self):
+        """The health --help should show --continuous and --interval options."""
+        runner = CliRunner()
+        result = runner.invoke(cli, ["health", "--help"])
+        assert result.exit_code == 0
+        assert "--continuous" in result.output
+        assert "--interval" in result.output
+        assert "60" in result.output  # default interval value
+
+    def test_health_json_flag_help(self):
+        """The health --help should show --json flag with description."""
+        runner = CliRunner()
+        result = runner.invoke(cli, ["health", "--help"])
+        assert result.exit_code == 0
+        assert "--json" in result.output
+        assert "JSON" in result.output or "json" in result.output.lower()
+
+    def test_health_json_simulate_produces_valid_json(self):
+        """Health --json in simulate mode should produce valid JSON output."""
+        runner = CliRunner()
+        result = runner.invoke(cli, ["--simulate", "health", "--json"])
+        assert result.exit_code == 0
+        # Parse the output as JSON - should not raise
+        data = json.loads(result.output.strip())
+        assert "timestamp" in data
+        assert "status" in data
+        assert data["status"] in ("healthy", "unhealthy", "skipped")
+        assert "checks" in data
+
 
 class TestInitCommand:
     def test_init_creates_template(self, tmp_path):

@@ -1,7 +1,10 @@
 {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cc-collab.dev/schemas/review-result/v1.0.0",
   "type": "object",
   "required": ["claude_review", "codex_review", "action_required", "go_no_go"],
   "properties": {
+    "version": { "type": "string", "const": "1.0.0", "default": "1.0.0" },
     "work_id": { "type": "string" },
     "status": { "type": "string", "enum": ["ready_for_merge", "blocked"] },
     "claude_review": {

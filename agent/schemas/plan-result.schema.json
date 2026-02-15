@@ -1,7 +1,10 @@
 {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cc-collab.dev/schemas/plan-result/v1.0.0",
   "type": "object",
   "required": ["status", "implementation_contract", "test_plan", "open_questions"],
   "properties": {
+    "version": { "type": "string", "const": "1.0.0", "default": "1.0.0" },
     "status": { "type": "string", "enum": ["done", "blocked"] },
     "implementation_contract": { "type": "array", "items": { "type": "string" } },
     "test_plan": { "type": "array", "items": { "type": "string" } },

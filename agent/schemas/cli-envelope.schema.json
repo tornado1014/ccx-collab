@@ -1,7 +1,10 @@
 {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cc-collab.dev/schemas/cli-envelope/v1.0.0",
   "type": "object",
   "required": ["status", "exit_code", "stdout", "stderr"],
   "properties": {
+    "version": { "type": "string", "const": "1.0.0", "default": "1.0.0" },
     "status": { "type": "string", "enum": ["passed", "failed"] },
     "exit_code": { "type": "integer" },
     "stdout": { "type": "string" },
