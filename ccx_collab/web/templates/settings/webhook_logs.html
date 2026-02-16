@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('webhook_logs') }}{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold">{{ _('webhook_logs') }}</h1>
+    <p class="text-muted">Webhook delivery history</p>
+</div>
+
+<div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                    <th class="px-4 py-3 text-left font-medium">#</th>
+                    <th class="px-4 py-3 text-left font-medium">Webhook</th>
+                    <th class="px-4 py-3 text-left font-medium">Event</th>
+                    <th class="px-4 py-3 text-left font-medium">Status</th>
+                    <th class="px-4 py-3 text-left font-medium">Sent At</th>
+                    <th class="px-4 py-3 text-left font-medium">Response</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs | default([]) %}
+                <tr>
+                    <td class="px-4 py-3 border-t border-gray-100 dark:border-gray-700">{{ log.id }}</td>
+                    <td class="px-4 py-3 border-t border-gray-100 dark:border-gray-700">{{ log.config_id }}</td>
+                    <td class="px-4 py-3 border-t border-gray-100 dark:border-gray-700"><span class="event-tag">{{ log.event }}</span></td>
+                    <td class="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
+                        {% if log.status_code and log.status_code >= 200 and log.status_code < 300 %}
+                        <span class="badge badge-completed">{{ log.status_code }}</span>
+                        {% else %}
+                        <span class="badge badge-failed">{{ log.status_code or 'Error' }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3 border-t border-gray-100 dark:border-gray-700 text-xs">{{ log.sent_at }}</td>
+                    <td class="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
+                        {% if log.response %}
+                        <details><summary class="text-xs cursor-pointer">View</summary>
+                            <pre class="text-xs mt-1 bg-gray-50 dark:bg-gray-700 p-2 rounded">{{ log.response }}</pre>
+                        </details>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                {% if not logs %}
+                <tr>
+                    <td colspan="6" class="px-4 py-3 border-t border-gray-100 dark:border-gray-700 text-muted">No webhook delivery logs.</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="mt-4">
+    <a href="/settings/webhooks" class="inline-block px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-sm">
+        Back to Webhook Settings
+    </a>
+</div>
+{% endblock %}

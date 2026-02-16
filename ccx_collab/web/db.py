@@ -6,7 +6,7 @@ from pathlib import Path
 
 import aiosqlite
 
-from ccx_collab.web.models import ALL_CREATE_TABLES
+from ccx_collab.web.models import ALL_CREATE_INDICES, ALL_CREATE_TABLES
 
 DB_PATH = Path.home() / ".ccx-collab" / "dashboard.db"
 
@@ -26,7 +26,10 @@ async def get_db() -> aiosqlite.Connection:
 async def init_db() -> None:
     """Create tables if they don't exist."""
     db = await get_db()
+    await db.execute("PRAGMA journal_mode=WAL")
     for stmt in ALL_CREATE_TABLES:
+        await db.execute(stmt)
+    for stmt in ALL_CREATE_INDICES:
         await db.execute(stmt)
     await db.commit()
 

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('results') }}{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold">{{ _('results') }}</h1>
+    <p class="text-muted">Browse pipeline result files</p>
+</div>
+
+<div x-data="resultBrowser()" x-init="load()">
+    <div class="flex gap-3 items-center mb-4">
+        <input type="text" x-model="filter" @input.debounce.300ms="load()"
+               placeholder="Filter by work ID..."
+               class="border rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:border-gray-600 text-sm w-64">
+        <button @click="load()" class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
+            Refresh
+        </button>
+        <span class="text-xs text-muted" x-text="files.length + ' files'"></span>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- File list -->
+        <div class="lg:col-span-1">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+                <template x-for="f in files" :key="f.name">
+                    <button @click="selectFile(f.name)"
+                            class="w-full text-left px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm"
+                            :class="{ 'bg-blue-50 dark:bg-blue-900/20': selectedFile === f.name }">
+                        <div class="font-medium truncate" x-text="f.name"></div>
+                        <div class="text-xs text-muted" x-text="(f.size / 1024).toFixed(1) + ' KB'"></div>
+                    </button>
+                </template>
+                <template x-if="files.length === 0">
+                    <p class="p-4 text-sm text-muted">No result files found.</p>
+                </template>
+            </div>
+        </div>
+
+        <!-- File viewer -->
+        <div class="lg:col-span-2">
+            <template x-if="selectedContent">
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-semibold" x-text="selectedFile"></h3>
+                    </div>
+                    <pre class="bg-gray-50 dark:bg-gray-700 p-4 rounded text-xs overflow-x-auto max-h-[600px] overflow-y-auto"
+                         x-text="JSON.stringify(selectedContent, null, 2)"></pre>
+                </div>
+            </template>
+            <template x-if="!selectedContent">
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 text-center text-muted">
+                    Select a file to view its contents
+                </div>
+            </template>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function resultBrowser() {
+    return {
+        files: [],
+        filter: '',
+        selectedFile: null,
+        selectedContent: null,
+        async load() {
+            try {
+                const params = this.filter ? '?work_id=' + this.filter : '';
+                const resp = await fetch('/api/results' + params);
+                const data = await resp.json();
+                this.files = data.files;
+            } catch (e) { console.error(e); }
+        },
+        async selectFile(name) {
+            this.selectedFile = name;
+            try {
+                const resp = await fetch('/api/results/' + name);
+                this.selectedContent = await resp.json();
+            } catch (e) { console.error(e); }
+        }
+    };
+}
+</script>
+{% endblock %}

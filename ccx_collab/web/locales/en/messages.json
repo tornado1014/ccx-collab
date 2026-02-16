@@ -73,5 +73,17 @@
     "configured_webhooks": "Configured Webhooks",
     "low": "Low",
     "medium": "Medium",
-    "high": "High"
+    "high": "High",
+    "stages": "Stages",
+    "run_stage": "Run Stage",
+    "logs": "Logs",
+    "results": "Results",
+    "health": "Health",
+    "cleanup": "Cleanup",
+    "config": "Configuration",
+    "webhook_logs": "Webhook Logs",
+    "preview": "Preview",
+    "execute": "Execute",
+    "force_stage": "Force Stage",
+    "resume": "Resume"
 }

@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('cleanup') }}{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold">{{ _('cleanup') }}</h1>
+    <p class="text-muted">Clean up old pipeline result files</p>
+</div>
+
+<div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6" x-data="cleanupManager()">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div>
+            <label class="block text-sm font-medium mb-1">Results Directory</label>
+            <input type="text" x-model="resultsDir" placeholder="Leave empty for default"
+                   class="border rounded-lg px-3 py-2 w-full bg-white dark:bg-gray-700 dark:border-gray-600">
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1">Retention Days</label>
+            <input type="number" x-model.number="retentionDays" min="1"
+                   class="border rounded-lg px-3 py-2 w-full bg-white dark:bg-gray-700 dark:border-gray-600">
+        </div>
+    </div>
+
+    <div class="flex gap-3 mb-6">
+        <button @click="preview()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm" :disabled="loading">
+            {{ _('preview') }}
+        </button>
+        <button @click="execute()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
+                :disabled="loading || !previewResult || previewResult.deleted_count === 0"
+                x-show="previewResult && previewResult.deleted_count > 0">
+            {{ _('execute') }} (<span x-text="previewResult?.deleted_count || 0"></span> files)
+        </button>
+    </div>
+
+    <template x-if="previewResult">
+        <div>
+            <div class="flex gap-4 mb-4 text-sm">
+                <span>Files: <strong x-text="previewResult.deleted_count"></strong></span>
+                <span>Size: <strong x-text="(previewResult.total_size / 1024).toFixed(1) + ' KB'"></strong></span>
+            </div>
+            <template x-if="previewResult.files.length > 0">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 dark:bg-gray-700">
+                            <tr>
+                                <th class="px-4 py-2 text-left">File</th>
+                                <th class="px-4 py-2 text-left">Size</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="f in previewResult.files" :key="f.name">
+                                <tr>
+                                    <td class="px-4 py-2 border-t border-gray-100 dark:border-gray-700"><code class="text-xs" x-text="f.name"></code></td>
+                                    <td class="px-4 py-2 border-t border-gray-100 dark:border-gray-700" x-text="(f.size / 1024).toFixed(1) + ' KB'"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </template>
+            <template x-if="previewResult.files.length === 0">
+                <p class="text-sm text-muted">No files to clean up.</p>
+            </template>
+        </div>
+    </template>
+
+    <template x-if="executeResult">
+        <div class="mt-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+            <p class="text-sm font-medium text-green-800 dark:text-green-200">
+                Deleted <span x-text="executeResult.deleted_count"></span> files,
+                freed <span x-text="(executeResult.total_size / 1024).toFixed(1) + ' KB'"></span>
+            </p>
+        </div>
+    </template>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function cleanupManager() {
+    return {
+        resultsDir: '',
+        retentionDays: 30,
+        loading: false,
+        previewResult: null,
+        executeResult: null,
+        async preview() {
+            this.loading = true;
+            this.executeResult = null;
+            try {
+                const resp = await fetch('/api/cleanup/preview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ results_dir: this.resultsDir, retention_days: this.retentionDays }),
+                });
+                this.previewResult = await resp.json();
+            } catch (e) { console.error(e); }
+            this.loading = false;
+        },
+        async execute() {
+            if (!confirm('Delete ' + this.previewResult.deleted_count + ' files?')) return;
+            this.loading = true;
+            try {
+                const resp = await fetch('/api/cleanup/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ results_dir: this.resultsDir, retention_days: this.retentionDays }),
+                });
+                this.executeResult = await resp.json();
+                this.previewResult = null;
+            } catch (e) { console.error(e); }
+            this.loading = false;
+        }
+    };
+}
+</script>
+{% endblock %}

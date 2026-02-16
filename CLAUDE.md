@@ -93,7 +93,7 @@ Skip in emergencies: `git commit --no-verify` (then run `pre-commit run --all-fi
 ### Testing
 
 ```bash
-python3 -m pytest tests/test_ccx_collab/ agent/tests/ -v  # 505 tests
+python3 -m pytest tests/test_ccx_collab/ agent/tests/ -v  # 541 tests
 ```
 
 ## Docker
@@ -116,9 +116,11 @@ ccx-collab web --port 9000 --reload  # custom port + auto-reload
 ```
 
 Features: pipeline monitoring (SSE), task management (CRUD), run history with charts,
-webhook settings, Mermaid pipeline visualization, i18n (en/ko).
+webhook settings + delivery logs, Mermaid pipeline visualization, i18n (en/ko),
+individual stage execution, health check, cleanup manager, config editor,
+log viewer (SSE streaming), result file browser, resume/force-stage pipeline control.
 
-Stack: FastAPI + HTMX + Jinja2 + Pico CSS + SQLite (aiosqlite).
+Stack: FastAPI + HTMX + Tailwind CSS v4 + Alpine.js + SQLite (aiosqlite).
 
 ## Integration with Sisyphus
 

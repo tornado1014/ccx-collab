@@ -3,94 +3,94 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<hgroup>
-    <h1>Dashboard</h1>
-    <p>Pipeline overview and quick actions</p>
-</hgroup>
-
-<div class="stats-grid">
-    <article class="stat-card">
-        <h2>{{ total_runs | default(0) }}</h2>
-        <p>Total Runs</p>
-    </article>
-    <article class="stat-card">
-        <h2>{{ status_counts.get('running', 0) if status_counts else 0 }}</h2>
-        <p>Running</p>
-    </article>
-    <article class="stat-card">
-        <h2>{{ status_counts.get('completed', 0) if status_counts else 0 }}</h2>
-        <p>Completed</p>
-    </article>
-    <article class="stat-card">
-        <h2>{{ status_counts.get('failed', 0) if status_counts else 0 }}</h2>
-        <p>Failed</p>
-    </article>
+<div class="mb-6">
+    <h1 class="text-2xl font-bold">Dashboard</h1>
+    <p class="text-muted">Pipeline overview and quick actions</p>
 </div>
 
-<div class="grid">
+<div class="stats-grid">
+    <div class="stat-card">
+        <h2 class="text-3xl font-bold">{{ total_runs | default(0) }}</h2>
+        <p class="text-muted">Total Runs</p>
+    </div>
+    <div class="stat-card">
+        <h2 class="text-3xl font-bold">{{ status_counts.get('running', 0) if status_counts else 0 }}</h2>
+        <p class="text-muted">Running</p>
+    </div>
+    <div class="stat-card">
+        <h2 class="text-3xl font-bold">{{ status_counts.get('completed', 0) if status_counts else 0 }}</h2>
+        <p class="text-muted">Completed</p>
+    </div>
+    <div class="stat-card">
+        <h2 class="text-3xl font-bold">{{ status_counts.get('failed', 0) if status_counts else 0 }}</h2>
+        <p class="text-muted">Failed</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
     <section>
-        <hgroup>
-            <h2>Running Pipelines</h2>
-            <p>Currently active pipeline executions</p>
-        </hgroup>
+        <div class="mb-6">
+            <h2 class="text-xl font-semibold">Running Pipelines</h2>
+            <p class="text-muted text-sm">Currently active pipeline executions</p>
+        </div>
         {% if running_pipelines %}
         {% for run in running_pipelines %}
-        <article>
-            <header>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+            <div class="font-semibold text-lg mb-4">
                 <span class="badge badge-running">running</span>
                 <strong>{{ run.work_id }}</strong>
-            </header>
-            <p>Stage: <code>{{ run.current_stage or 'initializing' }}</code></p>
-            <p><small>Started: {{ run.started_at or 'N/A' }}</small></p>
-            <footer>
-                <a href="/pipeline/{{ run.id }}/monitor" role="button" class="outline">Monitor</a>
-            </footer>
-        </article>
+            </div>
+            <p>Stage: <code class="text-sm bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">{{ run.current_stage or 'initializing' }}</code></p>
+            <p><small class="text-muted">Started: {{ run.started_at or 'N/A' }}</small></p>
+            <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <a href="/pipeline/{{ run.id }}/monitor" class="inline-block px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-sm">Monitor</a>
+            </div>
+        </div>
         {% endfor %}
         {% else %}
-        <p>No pipelines currently running.</p>
+        <p class="text-muted">No pipelines currently running.</p>
         {% endif %}
     </section>
 
     <section>
-        <hgroup>
-            <h2>Recent Completions</h2>
-            <p>Latest pipeline results</p>
-        </hgroup>
+        <div class="mb-6">
+            <h2 class="text-xl font-semibold">Recent Completions</h2>
+            <p class="text-muted text-sm">Latest pipeline results</p>
+        </div>
         {% if recent_runs %}
-        <figure>
-            <table>
-                <thead>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 dark:bg-gray-700">
                     <tr>
-                        <th>Work ID</th>
-                        <th>Status</th>
-                        <th>Started</th>
-                        <th>Finished</th>
+                        <th class="px-4 py-3 text-left font-medium">Work ID</th>
+                        <th class="px-4 py-3 text-left font-medium">Status</th>
+                        <th class="px-4 py-3 text-left font-medium">Started</th>
+                        <th class="px-4 py-3 text-left font-medium">Finished</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for run in recent_runs %}
                     <tr>
-                        <td><a href="/history/{{ run.id }}">{{ run.work_id }}</a></td>
-                        <td>
+                        <td class="px-4 py-3 border-t border-gray-100 dark:border-gray-700"><a href="/history/{{ run.id }}" class="text-blue-600 hover:underline">{{ run.work_id }}</a></td>
+                        <td class="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
                             <span class="badge badge-{{ run.status }}">{{ run.status }}</span>
                         </td>
-                        <td><small>{{ run.started_at or 'N/A' }}</small></td>
-                        <td><small>{{ run.finished_at or 'N/A' }}</small></td>
+                        <td class="px-4 py-3 border-t border-gray-100 dark:border-gray-700"><small class="text-muted">{{ run.started_at or 'N/A' }}</small></td>
+                        <td class="px-4 py-3 border-t border-gray-100 dark:border-gray-700"><small class="text-muted">{{ run.finished_at or 'N/A' }}</small></td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
-        </figure>
+        </div>
         {% else %}
-        <p>No completed runs yet.</p>
+        <p class="text-muted">No completed runs yet.</p>
         {% endif %}
     </section>
 </div>
 
 <div class="quick-actions">
-    <a href="/tasks" role="button">Quick Run</a>
-    <a href="/history" role="button" class="secondary">View History</a>
-    <a href="/history/charts" role="button" class="outline">Analytics</a>
+    <a href="/tasks" class="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">Quick Run</a>
+    <a href="/history" class="inline-block px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm">View History</a>
+    <a href="/history/charts" class="inline-block px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-sm">Analytics</a>
 </div>
 {% endblock %}

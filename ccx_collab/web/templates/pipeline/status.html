@@ -3,62 +3,62 @@
 {% block title %}Pipeline Status{% endblock %}
 
 {% block content %}
-<hgroup>
-    <h1>Pipeline Status</h1>
-    <p>Work ID: <code>{{ run.work_id }}</code></p>
-</hgroup>
+<div class="mb-6">
+    <h1 class="text-2xl font-bold">Pipeline Status</h1>
+    <p class="text-muted">Work ID: <code class="text-sm bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">{{ run.work_id }}</code></p>
+</div>
 
-<article>
-    <header>
-        <div class="grid">
+<div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+    <div class="font-semibold text-lg mb-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
                 <strong>Status:</strong> <span class="badge badge-{{ run.status }}">{{ run.status }}</span>
             </div>
             <div>
-                <strong>Current Stage:</strong> <code>{{ run.current_stage or 'N/A' }}</code>
+                <strong>Current Stage:</strong> <code class="text-sm bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">{{ run.current_stage or 'N/A' }}</code>
             </div>
             <div>
                 <strong>Started:</strong> {{ run.started_at or 'N/A' }}
             </div>
         </div>
-    </header>
-</article>
+    </div>
+</div>
 
-<h2>Stage Progress</h2>
+<h2 class="text-xl font-semibold mb-4">Stage Progress</h2>
 <div hx-get="/api/pipeline/{{ run.id }}/status" hx-trigger="every 5s" hx-swap="innerHTML">
-    <figure>
-        <table>
-            <thead>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                    <th>#</th>
-                    <th>Stage</th>
-                    <th>Status</th>
-                    <th>Started</th>
-                    <th>Finished</th>
+                    <th class="px-4 py-3 text-left font-medium">#</th>
+                    <th class="px-4 py-3 text-left font-medium">Stage</th>
+                    <th class="px-4 py-3 text-left font-medium">Status</th>
+                    <th class="px-4 py-3 text-left font-medium">Started</th>
+                    <th class="px-4 py-3 text-left font-medium">Finished</th>
                 </tr>
             </thead>
             <tbody>
                 {% for stage in stages | default([]) %}
                 <tr>
-                    <td>{{ loop.index }}</td>
-                    <td><strong>{{ stage.stage_name }}</strong></td>
-                    <td><span class="badge badge-{{ stage.status }}">{{ stage.status }}</span></td>
-                    <td><small>{{ stage.started_at or '-' }}</small></td>
-                    <td><small>{{ stage.finished_at or '-' }}</small></td>
+                    <td class="px-4 py-3 border-t border-gray-100 dark:border-gray-700">{{ loop.index }}</td>
+                    <td class="px-4 py-3 border-t border-gray-100 dark:border-gray-700"><strong>{{ stage.stage_name }}</strong></td>
+                    <td class="px-4 py-3 border-t border-gray-100 dark:border-gray-700"><span class="badge badge-{{ stage.status }}">{{ stage.status }}</span></td>
+                    <td class="px-4 py-3 border-t border-gray-100 dark:border-gray-700"><small class="text-muted">{{ stage.started_at or '-' }}</small></td>
+                    <td class="px-4 py-3 border-t border-gray-100 dark:border-gray-700"><small class="text-muted">{{ stage.finished_at or '-' }}</small></td>
                 </tr>
                 {% endfor %}
                 {% if not stages %}
                 <tr>
-                    <td colspan="5">No stage data available yet.</td>
+                    <td colspan="5" class="px-4 py-3 border-t border-gray-100 dark:border-gray-700 text-muted">No stage data available yet.</td>
                 </tr>
                 {% endif %}
             </tbody>
         </table>
-    </figure>
+    </div>
 </div>
 
 <div class="quick-actions">
-    <a href="/pipeline/{{ run.id }}/monitor" role="button" class="outline">Live Monitor</a>
-    <a href="/" role="button" class="secondary">Back to Dashboard</a>
+    <a href="/pipeline/{{ run.id }}/monitor" class="inline-block px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-sm">Live Monitor</a>
+    <a href="/" class="inline-block px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm">Back to Dashboard</a>
 </div>
 {% endblock %}

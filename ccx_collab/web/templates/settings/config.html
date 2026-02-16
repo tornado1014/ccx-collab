@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('config') }}{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold">{{ _('config') }}</h1>
+    <p class="text-muted">View and manage ccx-collab configuration</p>
+</div>
+
+<div x-data="configManager()" x-init="load()">
+    <template x-if="layers">
+        <div>
+            <!-- Merged config -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+                <h3 class="font-semibold mb-3">Merged Configuration</h3>
+                <pre class="bg-gray-50 dark:bg-gray-700 p-4 rounded text-sm overflow-x-auto" x-text="JSON.stringify(layers.merged, null, 2)"></pre>
+            </div>
+
+            <!-- Config layers -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+                    <h4 class="font-medium text-sm mb-2">Defaults</h4>
+                    <pre class="text-xs bg-gray-50 dark:bg-gray-700 p-2 rounded overflow-x-auto" x-text="JSON.stringify(layers.defaults, null, 2)"></pre>
+                </div>
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+                    <h4 class="font-medium text-sm mb-2">User Config</h4>
+                    <p class="text-xs text-muted mb-1" x-text="layers.user.path"></p>
+                    <span class="text-xs" :class="layers.user.exists ? 'text-green-600' : 'text-gray-400'" x-text="layers.user.exists ? 'Found' : 'Not found'"></span>
+                    <template x-if="layers.user.exists">
+                        <pre class="text-xs bg-gray-50 dark:bg-gray-700 p-2 rounded mt-2 overflow-x-auto" x-text="JSON.stringify(layers.user.content, null, 2)"></pre>
+                    </template>
+                </div>
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+                    <h4 class="font-medium text-sm mb-2">Project Config</h4>
+                    <p class="text-xs text-muted mb-1" x-text="layers.project.path"></p>
+                    <span class="text-xs" :class="layers.project.exists ? 'text-green-600' : 'text-gray-400'" x-text="layers.project.exists ? 'Found' : 'Not found'"></span>
+                </div>
+            </div>
+
+            <!-- Edit project config -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+                <h3 class="font-semibold mb-3">Edit Project Config</h3>
+                <textarea x-model="yamlContent" rows="10"
+                          class="border rounded-lg px-3 py-2 w-full font-mono text-sm bg-white dark:bg-gray-700 dark:border-gray-600"></textarea>
+                <div class="flex gap-3 mt-3">
+                    <button @click="save()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm" :disabled="saving">
+                        Save
+                    </button>
+                </div>
+                <template x-if="saveMsg">
+                    <p class="mt-2 text-sm" :class="saveError ? 'text-red-600' : 'text-green-600'" x-text="saveMsg"></p>
+                </template>
+            </div>
+
+            <!-- Environment variables -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <h3 class="font-semibold mb-3">Environment Variables</h3>
+                <template x-if="envVars">
+                    <div class="space-y-2">
+                        <template x-for="name in Object.keys(envVars)" :key="name">
+                            <div class="flex justify-between text-sm">
+                                <code x-text="name"></code>
+                                <span x-text="envVars[name] || '(not set)'" :class="envVars[name] ? '' : 'text-gray-400'"></span>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </template>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function configManager() {
+    return {
+        layers: null,
+        envVars: null,
+        yamlContent: '',
+        saving: false,
+        saveMsg: '',
+        saveError: false,
+        async load() {
+            try {
+                const [layersResp, envResp] = await Promise.all([
+                    fetch('/api/config/layers'),
+                    fetch('/api/config/env'),
+                ]);
+                this.layers = await layersResp.json();
+                this.envVars = await envResp.json();
+                // Load existing project config as YAML text
+                if (this.layers.project.exists) {
+                    this.yamlContent = Object.entries(this.layers.project.content)
+                        .map(([k, v]) => k + ': ' + JSON.stringify(v)).join('\n');
+                }
+            } catch (e) { console.error(e); }
+        },
+        async save() {
+            this.saving = true;
+            this.saveMsg = '';
+            try {
+                const resp = await fetch('/api/config/project', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: this.yamlContent }),
+                });
+                if (resp.ok) {
+                    this.saveMsg = 'Saved successfully!';
+                    this.saveError = false;
+                    await this.load();
+                } else {
+                    const err = await resp.json();
+                    this.saveMsg = err.detail || 'Save failed';
+                    this.saveError = true;
+                }
+            } catch (e) {
+                this.saveMsg = e.message;
+                this.saveError = true;
+            }
+            this.saving = false;
+        }
+    };
+}
+</script>
+{% endblock %}

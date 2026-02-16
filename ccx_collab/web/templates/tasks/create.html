@@ -3,44 +3,44 @@
 {% block title %}Create Task{% endblock %}
 
 {% block content %}
-<hgroup>
-    <h1>Create Task</h1>
-    <p>Define a new pipeline task</p>
-</hgroup>
+<div class="mb-6">
+    <h1 class="text-2xl font-bold">Create Task</h1>
+    <p class="text-muted">Define a new pipeline task</p>
+</div>
 
-<article>
+<div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
     <form hx-post="/api/tasks" hx-target="#create-result" hx-swap="innerHTML">
-        <div class="grid">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
             <div>
-                <label for="task_id">Task ID</label>
-                <input type="text" id="task_id" name="task_id" placeholder="e.g. TASK-001" required>
+                <label class="block text-sm font-medium mb-1" for="task_id">Task ID</label>
+                <input type="text" id="task_id" name="task_id" placeholder="e.g. TASK-001" required class="border rounded-lg px-3 py-2 w-full bg-white dark:bg-gray-700 dark:border-gray-600">
             </div>
             <div>
-                <label for="title">Title</label>
-                <input type="text" id="title" name="title" placeholder="Task title" required>
+                <label class="block text-sm font-medium mb-1" for="title">Title</label>
+                <input type="text" id="title" name="title" placeholder="Task title" required class="border rounded-lg px-3 py-2 w-full bg-white dark:bg-gray-700 dark:border-gray-600">
             </div>
         </div>
 
-        <div class="grid">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
             <div>
-                <label for="template">Template</label>
-                <select id="template" name="template">
+                <label class="block text-sm font-medium mb-1" for="template">Template</label>
+                <select id="template" name="template" class="border rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:border-gray-600 w-full">
                     <option value="simple">Simple</option>
                     <option value="standard" selected>Standard</option>
                     <option value="complex">Complex</option>
                 </select>
             </div>
             <div>
-                <label for="risk_level">Risk Level</label>
-                <select id="risk_level" name="risk_level">
+                <label class="block text-sm font-medium mb-1" for="risk_level">Risk Level</label>
+                <select id="risk_level" name="risk_level" class="border rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:border-gray-600 w-full">
                     <option value="low" selected>Low</option>
                     <option value="medium">Medium</option>
                     <option value="high">High</option>
                 </select>
             </div>
             <div>
-                <label for="priority">Priority</label>
-                <select id="priority" name="priority">
+                <label class="block text-sm font-medium mb-1" for="priority">Priority</label>
+                <select id="priority" name="priority" class="border rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:border-gray-600 w-full">
                     <option value="low">Low</option>
                     <option value="normal" selected>Normal</option>
                     <option value="high">High</option>
@@ -49,15 +49,15 @@
             </div>
         </div>
 
-        <label for="description">Description</label>
-        <textarea id="description" name="description" rows="4" placeholder="Describe the task objective..."></textarea>
+        <label class="block text-sm font-medium mb-1" for="description">Description</label>
+        <textarea id="description" name="description" rows="4" placeholder="Describe the task objective..." class="border rounded-lg px-3 py-2 w-full bg-white dark:bg-gray-700 dark:border-gray-600 mb-4"></textarea>
 
-        <label for="verify_commands">Verify Commands <small>(one per line)</small></label>
-        <textarea id="verify_commands" name="verify_commands" rows="3" placeholder="python -m pytest tests/ -v" style="font-family: monospace; font-size: 0.85rem;"></textarea>
+        <label class="block text-sm font-medium mb-1" for="verify_commands">Verify Commands <small class="text-muted">(one per line)</small></label>
+        <textarea id="verify_commands" name="verify_commands" rows="3" placeholder="python -m pytest tests/ -v" class="border rounded-lg px-3 py-2 w-full bg-white dark:bg-gray-700 dark:border-gray-600 mb-4" style="font-family: monospace; font-size: 0.85rem;"></textarea>
 
-        <button type="submit">Create Task</button>
+        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Create Task</button>
     </form>
-</article>
+</div>
 
 <div id="create-result"></div>
 {% endblock %}

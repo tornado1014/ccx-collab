@@ -73,5 +73,17 @@
     "configured_webhooks": "설정된 웹훅",
     "low": "낮음",
     "medium": "보통",
-    "high": "높음"
+    "high": "높음",
+    "stages": "단계",
+    "run_stage": "단계 실행",
+    "logs": "로그",
+    "results": "결과",
+    "health": "상태 점검",
+    "cleanup": "정리",
+    "config": "설정 관리",
+    "webhook_logs": "웹훅 로그",
+    "preview": "미리보기",
+    "execute": "실행",
+    "force_stage": "강제 단계",
+    "resume": "재개"
 }

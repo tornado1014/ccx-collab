@@ -3,49 +3,48 @@
 {% block title %}Webhook Settings{% endblock %}
 
 {% block content %}
-<hgroup>
-    <h1>Webhook Settings</h1>
-    <p>Configure notification webhooks for pipeline events</p>
-</hgroup>
+<div class="mb-6">
+    <h1 class="text-2xl font-bold">Webhook Settings</h1>
+    <p class="text-muted">Configure notification webhooks for pipeline events</p>
+</div>
 
-<h2>Webhooks</h2>
-<figure>
-    <table>
-        <thead>
+<h2 class="text-xl font-semibold mb-4">Webhooks</h2>
+<div class="overflow-x-auto mb-6">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 dark:bg-gray-700">
             <tr>
-                <th>Name</th>
-                <th>URL</th>
-                <th>Events</th>
-                <th>Active</th>
-                <th>Actions</th>
+                <th class="px-4 py-3 text-left font-medium">Name</th>
+                <th class="px-4 py-3 text-left font-medium">URL</th>
+                <th class="px-4 py-3 text-left font-medium">Events</th>
+                <th class="px-4 py-3 text-left font-medium">Active</th>
+                <th class="px-4 py-3 text-left font-medium">Actions</th>
             </tr>
         </thead>
         <tbody id="webhook-list">
             {% for wh in webhooks | default([]) %}
             <tr id="webhook-row-{{ wh.id }}">
-                <td><strong>{{ wh.name }}</strong></td>
-                <td><code style="font-size: 0.8rem;">{{ wh.url }}</code></td>
-                <td>
+                <td class="px-4 py-3 border-t border-gray-100 dark:border-gray-700"><strong>{{ wh.name }}</strong></td>
+                <td class="px-4 py-3 border-t border-gray-100 dark:border-gray-700"><code class="text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">{{ wh.url }}</code></td>
+                <td class="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
                     {% for event in wh.events_list | default([]) %}
                     <span class="event-tag">{{ event }}</span>
                     {% endfor %}
                 </td>
-                <td>
+                <td class="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
                     <input type="checkbox"
                            role="switch"
+                           class="mr-2"
                            {% if wh.active %}checked{% endif %}
                            hx-put="/api/webhooks/{{ wh.id }}/toggle"
                            hx-swap="none">
                 </td>
-                <td>
+                <td class="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
                     <div class="quick-actions">
-                        <button class="outline"
-                                style="padding: 0.3rem 0.6rem; font-size: 0.85rem;"
+                        <button class="px-3 py-1.5 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-xs"
                                 hx-post="/api/webhooks/{{ wh.id }}/test"
                                 hx-target="#test-result-{{ wh.id }}"
                                 hx-swap="innerHTML">Test</button>
-                        <button class="outline secondary"
-                                style="padding: 0.3rem 0.6rem; font-size: 0.85rem;"
+                        <button class="px-3 py-1.5 border border-gray-400 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-xs"
                                 hx-delete="/api/webhooks/{{ wh.id }}"
                                 hx-target="#webhook-row-{{ wh.id }}"
                                 hx-swap="outerHTML"
@@ -57,48 +56,48 @@
             {% endfor %}
             {% if not webhooks %}
             <tr>
-                <td colspan="5">No webhooks configured.</td>
+                <td colspan="5" class="px-4 py-3 border-t border-gray-100 dark:border-gray-700 text-muted">No webhooks configured.</td>
             </tr>
             {% endif %}
         </tbody>
     </table>
-</figure>
+</div>
 
-<h2>Add Webhook</h2>
-<article>
+<h2 class="text-xl font-semibold mb-4">Add Webhook</h2>
+<div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
     <form hx-post="/api/webhooks" hx-target="#webhook-list" hx-swap="beforeend" hx-on::after-request="this.reset()">
-        <div class="grid">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
             <div>
-                <label for="wh-name">Name</label>
-                <input type="text" id="wh-name" name="name" placeholder="e.g. Slack Notification" required>
+                <label class="block text-sm font-medium mb-1" for="wh-name">Name</label>
+                <input type="text" id="wh-name" name="name" placeholder="e.g. Slack Notification" required class="border rounded-lg px-3 py-2 w-full bg-white dark:bg-gray-700 dark:border-gray-600">
             </div>
             <div>
-                <label for="wh-url">URL</label>
-                <input type="url" id="wh-url" name="url" placeholder="https://hooks.example.com/..." required>
+                <label class="block text-sm font-medium mb-1" for="wh-url">URL</label>
+                <input type="url" id="wh-url" name="url" placeholder="https://hooks.example.com/..." required class="border rounded-lg px-3 py-2 w-full bg-white dark:bg-gray-700 dark:border-gray-600">
             </div>
         </div>
 
-        <fieldset>
-            <legend>Events</legend>
-            <label>
-                <input type="checkbox" name="events" value="pipeline_started">
+        <div class="space-y-2 mb-4">
+            <p class="font-medium mb-2">Events</p>
+            <label class="flex items-center text-sm">
+                <input type="checkbox" name="events" value="pipeline_started" class="mr-2">
                 pipeline_started
             </label>
-            <label>
-                <input type="checkbox" name="events" value="stage_completed">
+            <label class="flex items-center text-sm">
+                <input type="checkbox" name="events" value="stage_completed" class="mr-2">
                 stage_completed
             </label>
-            <label>
-                <input type="checkbox" name="events" value="pipeline_completed">
+            <label class="flex items-center text-sm">
+                <input type="checkbox" name="events" value="pipeline_completed" class="mr-2">
                 pipeline_completed
             </label>
-            <label>
-                <input type="checkbox" name="events" value="pipeline_failed">
+            <label class="flex items-center text-sm">
+                <input type="checkbox" name="events" value="pipeline_failed" class="mr-2">
                 pipeline_failed
             </label>
-        </fieldset>
+        </div>
 
-        <button type="submit">Add Webhook</button>
+        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Add Webhook</button>
     </form>
-</article>
+</div>
 {% endblock %}

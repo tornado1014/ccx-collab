@@ -1,69 +1,145 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" class="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}ccx-collab{% endblock %} - ccx-collab Dashboard</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
-    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10/dist/ext/sse.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+    <style type="text/tailwindcss">
+        @theme {
+            --color-primary: #3b82f6;
+            --color-success: #22c55e;
+            --color-danger: #ef4444;
+            --color-warning: #f59e0b;
+            --color-muted: #6b7280;
+        }
+    </style>
     {% block head %}{% endblock %}
 </head>
-<body>
-    <header class="container">
-        <nav>
-            <ul>
-                <li><a href="/" {% if request.url.path == '/' %}aria-current="page"{% endif %}><strong>ccx-collab</strong></a></li>
-            </ul>
-            <ul>
-                <li><a href="/" {% if request.url.path == '/' %}aria-current="page"{% endif %}>Dashboard</a></li>
-                <li><a href="/tasks" {% if '/tasks' in request.url.path %}aria-current="page"{% endif %}>Tasks</a></li>
-                <li><a href="/history" {% if '/history' in request.url.path %}aria-current="page"{% endif %}>History</a></li>
-                <li><a href="/settings/webhooks" {% if '/settings' in request.url.path %}aria-current="page"{% endif %}>Settings</a></li>
-            </ul>
-            <ul>
-                <li>
-                    <select class="lang-select" onchange="location.href='?lang='+this.value">
+<body class="bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 min-h-screen"
+      x-data="{ sidebarOpen: true, settingsOpen: false, mobileMenu: false }"
+      x-init="
+        const saved = localStorage.getItem('ccx-collab-theme');
+        if (saved === 'dark') document.documentElement.classList.replace('light', 'dark');
+      ">
+
+    <!-- Mobile header -->
+    <header class="md:hidden flex items-center justify-between p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <button @click="mobileMenu = !mobileMenu" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <a href="/" class="text-lg font-bold text-primary">ccx-collab</a>
+        <div class="flex items-center gap-2">
+            <select class="text-sm border rounded px-1 py-0.5 bg-white dark:bg-gray-700 dark:border-gray-600" onchange="location.href='?lang='+this.value">
+                <option value="en" {% if request.query_params.get('lang', 'en') == 'en' %}selected{% endif %}>EN</option>
+                <option value="ko" {% if request.query_params.get('lang') == 'ko' %}selected{% endif %}>KO</option>
+            </select>
+        </div>
+    </header>
+
+    <div class="flex">
+        <!-- Sidebar -->
+        <aside class="fixed md:sticky top-0 left-0 z-40 h-screen w-60 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col transition-transform duration-200"
+               :class="{ '-translate-x-full': !mobileMenu && !sidebarOpen, 'translate-x-0': mobileMenu || sidebarOpen }"
+               x-show="sidebarOpen || mobileMenu"
+               x-transition
+               @click.away="mobileMenu = false"
+               x-cloak>
+            <!-- Logo -->
+            <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+                <a href="/" class="text-xl font-bold text-primary hover:text-blue-700">ccx-collab</a>
+                <p class="text-xs text-muted mt-1">v0.4.0 Dashboard</p>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
+                <a href="/" class="flex items-center gap-2 px-3 py-2 text-sm rounded-lg {% if request.url.path == '/' %}bg-blue-50 text-primary dark:bg-blue-900/30{% else %}hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/></svg>
+                    {{ _('dashboard') }}
+                </a>
+                <a href="/tasks" class="flex items-center gap-2 px-3 py-2 text-sm rounded-lg {% if '/tasks' in request.url.path %}bg-blue-50 text-primary dark:bg-blue-900/30{% else %}hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                    {{ _('tasks') }}
+                </a>
+                <a href="/stages" class="flex items-center gap-2 px-3 py-2 text-sm rounded-lg {% if '/stages' in request.url.path %}bg-blue-50 text-primary dark:bg-blue-900/30{% else %}hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    {{ _('stages') }}
+                </a>
+                <a href="/history" class="flex items-center gap-2 px-3 py-2 text-sm rounded-lg {% if '/history' in request.url.path %}bg-blue-50 text-primary dark:bg-blue-900/30{% else %}hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    {{ _('history') }}
+                </a>
+                <a href="/logs" class="flex items-center gap-2 px-3 py-2 text-sm rounded-lg {% if '/logs' in request.url.path %}bg-blue-50 text-primary dark:bg-blue-900/30{% else %}hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+                    {{ _('logs') }}
+                </a>
+                <a href="/results" class="flex items-center gap-2 px-3 py-2 text-sm rounded-lg {% if '/results' in request.url.path %}bg-blue-50 text-primary dark:bg-blue-900/30{% else %}hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                    {{ _('results') }}
+                </a>
+
+                <!-- Settings group -->
+                <div class="pt-3 mt-3 border-t border-gray-200 dark:border-gray-700">
+                    <button @click="settingsOpen = !settingsOpen" class="w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            {{ _('settings') }}
+                        </span>
+                        <svg class="w-3 h-3 transition-transform" :class="{ 'rotate-90': settingsOpen }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                    <div x-show="settingsOpen" x-transition class="ml-4 mt-1 space-y-1">
+                        <a href="/settings/webhooks" class="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg {% if '/settings/webhooks' in request.url.path and 'logs' not in request.url.path %}bg-blue-50 text-primary dark:bg-blue-900/30{% else %}hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
+                            {{ _('webhooks') }}
+                        </a>
+                        <a href="/settings/webhooks/logs" class="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg {% if '/settings/webhooks/logs' in request.url.path %}bg-blue-50 text-primary dark:bg-blue-900/30{% else %}hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
+                            {{ _('webhook_logs') }}
+                        </a>
+                        <a href="/settings/health" class="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg {% if '/settings/health' in request.url.path %}bg-blue-50 text-primary dark:bg-blue-900/30{% else %}hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
+                            {{ _('health') }}
+                        </a>
+                        <a href="/settings/cleanup" class="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg {% if '/settings/cleanup' in request.url.path %}bg-blue-50 text-primary dark:bg-blue-900/30{% else %}hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
+                            {{ _('cleanup') }}
+                        </a>
+                        <a href="/settings/config" class="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg {% if '/settings/config' in request.url.path %}bg-blue-50 text-primary dark:bg-blue-900/30{% else %}hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
+                            {{ _('config') }}
+                        </a>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Footer controls -->
+            <div class="p-3 border-t border-gray-200 dark:border-gray-700 space-y-2">
+                <div class="flex items-center justify-between">
+                    <select class="text-xs border rounded px-1.5 py-1 bg-white dark:bg-gray-700 dark:border-gray-600" onchange="location.href='?lang='+this.value">
                         <option value="en" {% if request.query_params.get('lang', 'en') == 'en' %}selected{% endif %}>EN</option>
                         <option value="ko" {% if request.query_params.get('lang') == 'ko' %}selected{% endif %}>KO</option>
                     </select>
-                </li>
-                <li>
-                    <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
-                        <span id="theme-icon">&#9790;</span>
+                    <button @click="
+                        const html = document.documentElement;
+                        html.classList.toggle('dark');
+                        html.classList.toggle('light');
+                        localStorage.setItem('ccx-collab-theme', html.classList.contains('dark') ? 'dark' : 'light');
+                    " class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-sm" aria-label="Toggle theme">
+                        <span x-text="document.documentElement.classList.contains('dark') ? '&#9728;' : '&#9790;'"></span>
                     </button>
-                </li>
-            </ul>
-        </nav>
-    </header>
+                </div>
+            </div>
+        </aside>
 
-    <main class="container">
-        {% block content %}{% endblock %}
-    </main>
+        <!-- Main content -->
+        <main class="flex-1 min-h-screen p-6 md:p-8 max-w-7xl mx-auto w-full">
+            {% block content %}{% endblock %}
 
-    <footer class="container">
-        <hr>
-        <p><small>ccx-collab v0.3.0</small></p>
-    </footer>
+            <footer class="mt-12 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <p class="text-xs text-muted">ccx-collab v0.4.0</p>
+            </footer>
+        </main>
+    </div>
 
-    <script>
-        function toggleTheme() {
-            const html = document.documentElement;
-            const current = html.getAttribute('data-theme');
-            const next = current === 'dark' ? 'light' : 'dark';
-            html.setAttribute('data-theme', next);
-            localStorage.setItem('ccx-collab-theme', next);
-            document.getElementById('theme-icon').textContent = next === 'dark' ? '\u2600' : '\u263E';
-        }
-        (function() {
-            const saved = localStorage.getItem('ccx-collab-theme');
-            if (saved) {
-                document.documentElement.setAttribute('data-theme', saved);
-                document.getElementById('theme-icon').textContent = saved === 'dark' ? '\u2600' : '\u263E';
-            }
-        })();
-    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

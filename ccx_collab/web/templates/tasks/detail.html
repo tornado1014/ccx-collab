@@ -3,22 +3,22 @@
 {% block title %}Task - {{ task.task_id }}{% endblock %}
 
 {% block content %}
-<hgroup>
-    <h1>Task: {{ task.task_id }}</h1>
-    <p>{{ task.title | default('Untitled Task') }}</p>
-</hgroup>
+<div class="mb-6">
+    <h1 class="text-2xl font-bold">Task: {{ task.task_id }}</h1>
+    <p class="text-muted">{{ task.title | default('Untitled Task') }}</p>
+</div>
 
-<div class="grid">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
     <section>
-        <article>
-            <header><strong>Task Details</strong></header>
-            <dl>
-                <dt>Task ID</dt>
-                <dd><code>{{ task.task_id }}</code></dd>
-                <dt>Title</dt>
-                <dd>{{ task.title | default('N/A') }}</dd>
-                <dt>Risk Level</dt>
-                <dd>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+            <div class="font-semibold text-lg mb-4">Task Details</div>
+            <dl class="space-y-3">
+                <dt class="text-sm text-muted">Task ID</dt>
+                <dd class="font-medium"><code class="text-sm bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">{{ task.task_id }}</code></dd>
+                <dt class="text-sm text-muted">Title</dt>
+                <dd class="font-medium">{{ task.title | default('N/A') }}</dd>
+                <dt class="text-sm text-muted">Risk Level</dt>
+                <dd class="font-medium">
                     {% if task.risk_level == 'high' %}
                     <span class="badge badge-failed">{{ task.risk_level }}</span>
                     {% elif task.risk_level == 'medium' %}
@@ -27,41 +27,41 @@
                     <span class="badge badge-completed">{{ task.risk_level | default('low') }}</span>
                     {% endif %}
                 </dd>
-                <dt>Priority</dt>
-                <dd>{{ task.priority | default('normal') }}</dd>
-                <dt>File</dt>
-                <dd><code>{{ task.path | default('N/A') }}</code></dd>
+                <dt class="text-sm text-muted">Priority</dt>
+                <dd class="font-medium">{{ task.priority | default('normal') }}</dd>
+                <dt class="text-sm text-muted">File</dt>
+                <dd class="font-medium"><code class="text-sm bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">{{ task.path | default('N/A') }}</code></dd>
             </dl>
-        </article>
+        </div>
     </section>
 
     <section>
-        <article>
-            <header><strong>Task JSON</strong></header>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+            <div class="font-semibold text-lg mb-4">Task JSON</div>
             <div class="json-viewer">{{ task_json | default('{}') }}</div>
-        </article>
+        </div>
     </section>
 </div>
 
-<h2>Edit Task</h2>
-<article>
+<h2 class="text-xl font-semibold mb-4">Edit Task</h2>
+<div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
     <form hx-put="/api/tasks/{{ task.task_id }}" hx-target="#edit-result" hx-swap="innerHTML">
-        <label for="task-json">Task JSON</label>
-        <textarea id="task-json" name="task_json" rows="15" style="font-family: monospace; font-size: 0.85rem;">{{ task_json | default('{}') }}</textarea>
-        <button type="submit">Save Changes</button>
+        <label class="block text-sm font-medium mb-1" for="task-json">Task JSON</label>
+        <textarea id="task-json" name="task_json" rows="15" class="border rounded-lg px-3 py-2 w-full bg-white dark:bg-gray-700 dark:border-gray-600 mb-4" style="font-family: monospace; font-size: 0.85rem;">{{ task_json | default('{}') }}</textarea>
+        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save Changes</button>
     </form>
     <div id="edit-result"></div>
-</article>
+</div>
 
 <div class="quick-actions">
-    <a href="/pipeline/run?task={{ task.path }}" role="button">Run Pipeline</a>
-    <button class="secondary"
+    <a href="/pipeline/run?task={{ task.path }}" class="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">Run Pipeline</a>
+    <button class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm"
             hx-delete="/api/tasks/{{ task.task_id }}"
             hx-confirm="Delete task '{{ task.task_id }}'? This cannot be undone."
             hx-swap="none"
             onclick="this.addEventListener('htmx:afterRequest', function() { window.location.href = '/tasks'; })">
         Delete Task
     </button>
-    <a href="/tasks" role="button" class="outline">Back to Tasks</a>
+    <a href="/tasks" class="inline-block px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-sm">Back to Tasks</a>
 </div>
 {% endblock %}

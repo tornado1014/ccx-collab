@@ -54,11 +54,44 @@ class PipelineStatusResponse(BaseModel):
 # --- Background pipeline runner ---
 
 
+async def _resolve_stages_to_run(
+    db, work_id: str, resume: bool, force_stage: str | None,
+) -> list[str]:
+    """Determine which stages to run based on resume/force-stage options."""
+    if force_stage:
+        if force_stage not in PIPELINE_STAGES:
+            raise ValueError(f"Unknown stage: {force_stage}")
+        idx = PIPELINE_STAGES.index(force_stage)
+        return PIPELINE_STAGES[idx:]
+
+    if resume:
+        from ccx_collab.web.models import list_stage_results
+
+        # Find the latest run for this work_id
+        cursor = await db.execute(
+            "SELECT id FROM pipeline_runs WHERE work_id = ? ORDER BY started_at DESC LIMIT 1",
+            (work_id,),
+        )
+        row = await cursor.fetchone()
+        if row:
+            last_run_id = row[0]
+            results = await list_stage_results(db, last_run_id)
+            completed_stages = {r.stage_name for r in results if r.status == "completed"}
+            # Find first incomplete stage
+            for i, stage in enumerate(PIPELINE_STAGES):
+                if stage not in completed_stages:
+                    return PIPELINE_STAGES[i:]
+
+    return list(PIPELINE_STAGES)
+
+
 async def _run_pipeline_background(
     run_id: str,
     work_id: str,
     task_path: str,
     simulate: bool,
+    resume: bool = False,
+    force_stage: str | None = None,
 ) -> None:
     """Execute the full pipeline in a background thread, publishing SSE events."""
     from ccx_collab.bridge import (
@@ -78,6 +111,7 @@ async def _run_pipeline_background(
         insert_stage_result,
         update_pipeline_run_status,
     )
+    from ccx_collab.web.webhook import trigger_webhooks
 
     db = await get_db()
 
@@ -131,7 +165,16 @@ async def _run_pipeline_background(
     }
 
     try:
-        for stage in PIPELINE_STAGES:
+        # Resolve which stages to run
+        stages_to_run = await _resolve_stages_to_run(db, work_id, resume, force_stage)
+
+        # Webhook: pipeline started
+        await trigger_webhooks("pipeline_started", {
+            "work_id": work_id, "task_path": task_path,
+            "stages": stages_to_run,
+        })
+
+        for stage in stages_to_run:
             now = datetime.now(timezone.utc).isoformat()
 
             # Update run status
@@ -169,17 +212,28 @@ async def _run_pipeline_background(
                     work_id, stage, "failed", detail=f"exit code {rc}"
                 )
                 await sse_manager.publish_pipeline_complete(work_id, "failed")
+                # Webhook: stage failed + pipeline failed
+                await trigger_webhooks("stage_failed", {
+                    "work_id": work_id, "stage": stage, "exit_code": rc,
+                })
+                await trigger_webhooks("pipeline_failed", {"work_id": work_id})
                 return
 
             await sse_manager.publish_stage_update(work_id, stage, "completed")
+            # Webhook: stage completed
+            await trigger_webhooks("stage_completed", {
+                "work_id": work_id, "stage": stage,
+            })
 
         # All stages passed
         await update_pipeline_run_status(
             db, run_id, "completed",
-            current_stage="review",
+            current_stage=stages_to_run[-1] if stages_to_run else "review",
             finished_at=datetime.now(timezone.utc).isoformat(),
         )
         await sse_manager.publish_pipeline_complete(work_id, "completed")
+        # Webhook: pipeline completed
+        await trigger_webhooks("pipeline_completed", {"work_id": work_id})
 
     except Exception:
         logger.exception("Pipeline %s crashed", work_id)
@@ -188,6 +242,7 @@ async def _run_pipeline_background(
             finished_at=datetime.now(timezone.utc).isoformat(),
         )
         await sse_manager.publish_pipeline_complete(work_id, "failed")
+        await trigger_webhooks("pipeline_failed", {"work_id": work_id})
 
 
 def _run_implement_stage(
@@ -243,6 +298,13 @@ async def start_pipeline(body: PipelineRunRequest):
     if not work_id:
         work_id = hashlib.sha256(Path(task_path).read_bytes()).hexdigest()[:12]
 
+    # Validate force_stage
+    if body.force_stage and body.force_stage not in PIPELINE_STAGES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown stage: {body.force_stage}. Valid stages: {PIPELINE_STAGES}",
+        )
+
     db = await get_db()
     run_id = uuid.uuid4().hex[:16]
     now = datetime.now(timezone.utc).isoformat()
@@ -266,6 +328,8 @@ async def start_pipeline(body: PipelineRunRequest):
             work_id=work_id,
             task_path=task_path,
             simulate=body.simulate,
+            resume=body.resume,
+            force_stage=body.force_stage,
         )
     )
 

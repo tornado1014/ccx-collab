@@ -65,6 +65,19 @@ ALL_CREATE_TABLES = [
     CREATE_WEBHOOK_LOGS,
 ]
 
+# ---------------------------------------------------------------------------
+# CREATE INDEX statements
+# ---------------------------------------------------------------------------
+
+CREATE_INDICES = [
+    "CREATE INDEX IF NOT EXISTS idx_pipeline_runs_work_id ON pipeline_runs(work_id)",
+    "CREATE INDEX IF NOT EXISTS idx_pipeline_runs_status ON pipeline_runs(status)",
+    "CREATE INDEX IF NOT EXISTS idx_stage_results_run_id ON stage_results(run_id)",
+    "CREATE INDEX IF NOT EXISTS idx_webhook_logs_config_id ON webhook_logs(config_id)",
+]
+
+ALL_CREATE_INDICES = CREATE_INDICES
+
 
 # ---------------------------------------------------------------------------
 # Dataclasses

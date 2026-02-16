@@ -39,6 +39,30 @@ async def test_db(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# Database setup tests
+# ---------------------------------------------------------------------------
+
+class TestDatabaseSetup:
+    async def test_wal_mode_enabled(self):
+        db = await db_module.get_db()
+        cursor = await db.execute("PRAGMA journal_mode")
+        row = await cursor.fetchone()
+        assert row[0] == "wal"
+
+    async def test_indices_exist(self):
+        db = await db_module.get_db()
+        cursor = await db.execute(
+            "SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%'"
+        )
+        rows = await cursor.fetchall()
+        names = {r[0] for r in rows}
+        assert "idx_pipeline_runs_work_id" in names
+        assert "idx_pipeline_runs_status" in names
+        assert "idx_stage_results_run_id" in names
+        assert "idx_webhook_logs_config_id" in names
+
+
+# ---------------------------------------------------------------------------
 # Model CRUD tests
 # ---------------------------------------------------------------------------
 

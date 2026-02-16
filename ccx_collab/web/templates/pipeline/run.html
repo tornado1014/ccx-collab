@@ -3,44 +3,44 @@
 {% block title %}Run Pipeline{% endblock %}
 
 {% block content %}
-<hgroup>
-    <h1>Run Pipeline</h1>
-    <p>Configure and launch a new pipeline execution</p>
-</hgroup>
+<div class="mb-6">
+    <h1 class="text-2xl font-bold">Run Pipeline</h1>
+    <p class="text-muted">Configure and launch a new pipeline execution</p>
+</div>
 
-<article>
+<div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
     <form hx-post="/api/pipeline/run" hx-target="#run-result" hx-swap="innerHTML">
-        <label for="task_file">Task File</label>
-        <select id="task_file" name="task_file" required>
+        <label class="block text-sm font-medium mb-1" for="task_file">Task File</label>
+        <select id="task_file" name="task_file" required class="border rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:border-gray-600 w-full mb-4">
             <option value="" disabled selected>Select a task file...</option>
             {% for task in available_tasks | default([]) %}
             <option value="{{ task.path }}">{{ task.title | default(task.path) }}</option>
             {% endfor %}
         </select>
 
-        <label for="work_id">Work ID <small>(optional, auto-generated if empty)</small></label>
-        <input type="text" id="work_id" name="work_id" placeholder="e.g. work-001">
+        <label class="block text-sm font-medium mb-1" for="work_id">Work ID <small class="text-muted">(optional, auto-generated if empty)</small></label>
+        <input type="text" id="work_id" name="work_id" placeholder="e.g. work-001" class="border rounded-lg px-3 py-2 w-full bg-white dark:bg-gray-700 dark:border-gray-600 mb-4">
 
-        <label for="mode">Execution Mode</label>
-        <select id="mode" name="mode">
+        <label class="block text-sm font-medium mb-1" for="mode">Execution Mode</label>
+        <select id="mode" name="mode" class="border rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:border-gray-600 w-full mb-4">
             <option value="full">Full Pipeline</option>
             <option value="implement-only">Implement Only</option>
         </select>
 
-        <fieldset>
-            <label>
-                <input type="checkbox" name="simulate" role="switch">
+        <div class="space-y-2 mb-4">
+            <label class="flex items-center text-sm">
+                <input type="checkbox" name="simulate" role="switch" class="mr-2">
                 Simulate (no real CLI calls)
             </label>
-            <label>
-                <input type="checkbox" name="resume" role="switch">
+            <label class="flex items-center text-sm">
+                <input type="checkbox" name="resume" role="switch" class="mr-2">
                 Resume from last checkpoint
             </label>
-        </fieldset>
+        </div>
 
-        <button type="submit">Run Pipeline</button>
+        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Run Pipeline</button>
     </form>
-</article>
+</div>
 
 <div id="run-result"></div>
 {% endblock %}

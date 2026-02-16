@@ -100,3 +100,17 @@ async def test_webhook(webhook_id: int):
         return HTMLResponse(f'<small style="color: green">OK ({status_code})</small>')
     else:
         return HTMLResponse(f'<small style="color: red">Failed ({status_code})</small>')
+
+
+@router.get("/settings/webhooks/logs", response_class=HTMLResponse)
+async def webhook_logs_page(request: Request):
+    """Webhook delivery logs page."""
+    from ccx_collab.web.app import templates
+    from ccx_collab.web.db import get_db
+    from ccx_collab.web.models import list_webhook_logs
+
+    db = await get_db()
+    logs = await list_webhook_logs(db, limit=200)
+    return templates.TemplateResponse(request, "settings/webhook_logs.html", {
+        "logs": logs,
+    })

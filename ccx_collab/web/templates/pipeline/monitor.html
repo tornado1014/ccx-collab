@@ -7,14 +7,14 @@
 {% endblock %}
 
 {% block content %}
-<hgroup>
-    <h1>Pipeline Monitor</h1>
-    <p>Work ID: <code>{{ run.work_id }}</code> &mdash; <span class="badge badge-{{ run.status }}">{{ run.status }}</span></p>
-</hgroup>
+<div class="mb-6">
+    <h1 class="text-2xl font-bold">Pipeline Monitor</h1>
+    <p class="text-muted">Work ID: <code class="text-sm bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">{{ run.work_id }}</code> &mdash; <span class="badge badge-{{ run.status }}">{{ run.status }}</span></p>
+</div>
 
-<div class="grid">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
     <section>
-        <h2>Pipeline Diagram</h2>
+        <h2 class="text-xl font-semibold mb-4">Pipeline Diagram</h2>
         <div class="mermaid-container">
             <pre class="mermaid" id="mermaid-diagram">
 {{ mermaid_diagram }}
@@ -23,21 +23,21 @@
     </section>
 
     <section>
-        <h2>Run Info</h2>
-        <article>
-            <dl>
-                <dt>Task</dt>
-                <dd><code>{{ run.task_path }}</code></dd>
-                <dt>Started</dt>
-                <dd>{{ run.started_at or 'N/A' }}</dd>
-                <dt>Current Stage</dt>
-                <dd><code>{{ run.current_stage or 'initializing' }}</code></dd>
+        <h2 class="text-xl font-semibold mb-4">Run Info</h2>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+            <dl class="space-y-3">
+                <dt class="text-sm text-muted">Task</dt>
+                <dd class="font-medium"><code class="text-sm bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">{{ run.task_path }}</code></dd>
+                <dt class="text-sm text-muted">Started</dt>
+                <dd class="font-medium">{{ run.started_at or 'N/A' }}</dd>
+                <dt class="text-sm text-muted">Current Stage</dt>
+                <dd class="font-medium"><code class="text-sm bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">{{ run.current_stage or 'initializing' }}</code></dd>
             </dl>
-        </article>
+        </div>
     </section>
 </div>
 
-<h2>Stage Progress</h2>
+<h2 class="text-xl font-semibold mb-4">Stage Progress</h2>
 <div hx-ext="sse" sse-connect="/api/pipeline/{{ run.id }}/stream">
     <ul class="stage-list">
         {% for stage in stages | default([]) %}
@@ -45,18 +45,18 @@
             <span class="badge badge-{{ stage.status }}">{{ stage.status }}</span>
             <strong>{{ stage.stage_name }}</strong>
             {% if stage.started_at %}
-            <small>{{ stage.started_at }}</small>
+            <small class="text-muted">{{ stage.started_at }}</small>
             {% endif %}
         </li>
         {% endfor %}
     </ul>
 
-    <h3>Live Updates</h3>
+    <h3 class="text-lg font-semibold mb-3 mt-6">Live Updates</h3>
     <div id="stage-updates" sse-swap="stage_update" hx-swap="beforeend">
     </div>
 </div>
 
-<h2>Output Log</h2>
+<h2 class="text-xl font-semibold mb-4 mt-6">Output Log</h2>
 <div class="json-viewer" id="output-log"
      hx-get="/api/pipeline/{{ run.id }}/log"
      hx-trigger="every 3s"
