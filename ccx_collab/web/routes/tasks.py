@@ -58,8 +58,7 @@ async def list_tasks(request: Request):
     """List all task files."""
     from ccx_collab.web.app import templates
     tasks = _scan_tasks()
-    return templates.TemplateResponse("tasks/list.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "tasks/list.html", {
         "tasks": tasks,
     })
 
@@ -68,7 +67,7 @@ async def list_tasks(request: Request):
 async def create_task_form(request: Request):
     """Show task creation form."""
     from ccx_collab.web.app import templates
-    return templates.TemplateResponse("tasks/create.html", {"request": request})
+    return templates.TemplateResponse(request, "tasks/create.html")
 
 
 @router.get("/tasks/{task_id}", response_class=HTMLResponse)
@@ -79,8 +78,7 @@ async def task_detail(request: Request, task_id: str):
     if task_file is None:
         return HTMLResponse("<p>Task not found</p>", status_code=404)
     data = json.loads(task_file.read_text(encoding="utf-8"))
-    return templates.TemplateResponse("tasks/detail.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "tasks/detail.html", {
         "task": data,
         "task_json": json.dumps(data, indent=2, ensure_ascii=False),
     })

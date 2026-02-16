@@ -93,7 +93,7 @@ Skip in emergencies: `git commit --no-verify` (then run `pre-commit run --all-fi
 ### Testing
 
 ```bash
-python3 -m pytest tests/test_ccx_collab/ agent/tests/ -v  # 426 tests
+python3 -m pytest tests/test_ccx_collab/ agent/tests/ -v  # 505 tests
 ```
 
 ## Docker
@@ -103,6 +103,22 @@ docker build -t ccx-collab .
 docker run --rm ccx-collab run --task /app/agent/tasks/example.task.json
 docker compose run ccx-collab --help
 ```
+
+## Web Dashboard
+
+```bash
+# Install with web dependencies
+pip install -e ".[web]"
+
+# Start dashboard (default: http://localhost:8000)
+ccx-collab web
+ccx-collab web --port 9000 --reload  # custom port + auto-reload
+```
+
+Features: pipeline monitoring (SSE), task management (CRUD), run history with charts,
+webhook settings, Mermaid pipeline visualization, i18n (en/ko).
+
+Stack: FastAPI + HTMX + Jinja2 + Pico CSS + SQLite (aiosqlite).
 
 ## Integration with Sisyphus
 

@@ -45,9 +45,9 @@ async def dashboard(request: Request):
         )
 
     return templates.TemplateResponse(
+        request,
         "dashboard.html",
         {
-            "request": request,
             "recent_runs": recent_runs,
             "status_counts": status_counts,
             "running_pipelines": running,

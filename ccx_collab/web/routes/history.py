@@ -53,8 +53,7 @@ async def list_history(
     else:
         runs = await list_pipeline_runs(db, limit=RUNS_PER_PAGE, offset=offset)
 
-    return templates.TemplateResponse("history/list.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "history/list.html", {
         "runs": runs,
         "filter_status": status,
         "page": page,
@@ -66,7 +65,7 @@ async def list_history(
 async def charts_page(request: Request):
     """Analytics charts page."""
     from ccx_collab.web.app import templates
-    return templates.TemplateResponse("history/charts.html", {"request": request})
+    return templates.TemplateResponse(request, "history/charts.html")
 
 
 @router.get("/history/{run_id}", response_class=HTMLResponse)
@@ -83,8 +82,7 @@ async def run_detail(request: Request, run_id: str):
 
     stages = await list_stage_results(db, run_id)
 
-    return templates.TemplateResponse("history/detail.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "history/detail.html", {
         "run": run,
         "stages": stages,
     })

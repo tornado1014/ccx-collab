@@ -31,8 +31,7 @@ async def webhooks_page(request: Request):
             wh["events_list"] = []
         webhooks.append(wh)
 
-    return templates.TemplateResponse("settings/webhooks.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "settings/webhooks.html", {
         "webhooks": webhooks,
     })
 
