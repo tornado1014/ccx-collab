@@ -110,47 +110,47 @@ python3 agent/scripts/orchestrate.py run-retrospect \
   --out agent/results/retrospect_demo.json
 ```
 
-## cc-collab CLI
+## ccx-collab CLI
 
-`cc-collab` is a unified CLI tool that replaces the shell scripts and `orchestrate.py` workflow above. Built on [Click](https://click.palletsprojects.com/) and [Rich](https://rich.readthedocs.io/).
+`ccx-collab` is a unified CLI tool that replaces the shell scripts and `orchestrate.py` workflow above. Built on [Click](https://click.palletsprojects.com/) and [Rich](https://rich.readthedocs.io/).
 
 ### Installation
 
 ```bash
 pip install -e .
-cc-collab --version
+ccx-collab --version
 ```
 
 ### Run Full Pipeline
 
 ```bash
 # Simulation mode (no actual CLI calls)
-cc-collab --simulate run --task agent/tasks/example.task.json
+ccx-collab --simulate run --task agent/tasks/example.task.json
 
 # Run with actual CLI integration
-cc-collab run --task agent/tasks/example.task.json --work-id my-feature
+ccx-collab run --task agent/tasks/example.task.json --work-id my-feature
 ```
 
 ### Run Individual Stages
 
 ```bash
-cc-collab validate --task agent/tasks/example.task.json --out results/validation.json
-cc-collab plan --task agent/tasks/example.task.json --out results/plan.json
-cc-collab split --task agent/tasks/example.task.json --plan results/plan.json --out results/dispatch.json
-cc-collab implement --task agent/tasks/example.task.json --dispatch results/dispatch.json --subtask-id S01 --out results/impl_S01.json
-cc-collab merge --work-id demo --input "results/impl_*.json" --out results/implement.json
-cc-collab verify --work-id demo --out results/verify.json
-cc-collab review --work-id demo --plan results/plan.json --implement results/implement.json --verify results/verify.json --out results/review.json
-cc-collab retrospect --work-id demo --review results/review.json --out results/retrospect.json
+ccx-collab validate --task agent/tasks/example.task.json --out results/validation.json
+ccx-collab plan --task agent/tasks/example.task.json --out results/plan.json
+ccx-collab split --task agent/tasks/example.task.json --plan results/plan.json --out results/dispatch.json
+ccx-collab implement --task agent/tasks/example.task.json --dispatch results/dispatch.json --subtask-id S01 --out results/impl_S01.json
+ccx-collab merge --work-id demo --input "results/impl_*.json" --out results/implement.json
+ccx-collab verify --work-id demo --out results/verify.json
+ccx-collab review --work-id demo --plan results/plan.json --implement results/implement.json --verify results/verify.json --out results/review.json
+ccx-collab retrospect --work-id demo --review results/review.json --out results/retrospect.json
 ```
 
 ### Utility Commands
 
 ```bash
-cc-collab health                          # Check CLI tool availability
-cc-collab status --work-id my-feature     # Query pipeline progress
-cc-collab cleanup --retention-days 7      # Clean up old result files
-cc-collab init --task-id FEAT-001 --title "New feature"  # Generate task template
+ccx-collab health                          # Check CLI tool availability
+ccx-collab status --work-id my-feature     # Query pipeline progress
+ccx-collab cleanup --retention-days 7      # Clean up old result files
+ccx-collab init --task-id FEAT-001 --title "New feature"  # Generate task template
 ```
 
 ### Global Options
@@ -161,7 +161,7 @@ cc-collab init --task-id FEAT-001 --title "New feature"  # Generate task templat
 | `--simulate` | | Simulation mode (no actual CLI calls) |
 | `--version` | | Print version information |
 
-For a detailed command reference, see [docs/CC_COLLAB_CLI.md](docs/CC_COLLAB_CLI.md).
+For a detailed command reference, see [docs/CCX_COLLAB_CLI.md](docs/CCX_COLLAB_CLI.md).
 
 ## Project Structure
 
@@ -182,7 +182,7 @@ For a detailed command reference, see [docs/CC_COLLAB_CLI.md](docs/CC_COLLAB_CLI
 │   ├── tasks/                      # Input task definitions
 │   ├── tests/                      # pytest test suite
 │   └── pipeline-config.json        # Pipeline configuration
-├── cc_collab/                      # cc-collab CLI package
+├── ccx_collab/                      # ccx-collab CLI package
 │   ├── __init__.py                 # Package initialization and version info
 │   ├── cli.py                      # Click CLI entry point
 │   ├── bridge.py                   # orchestrate.py bridge layer
@@ -193,15 +193,15 @@ For a detailed command reference, see [docs/CC_COLLAB_CLI.md](docs/CC_COLLAB_CLI
 │       ├── pipeline.py             # run, status commands
 │       └── tools.py                # health, cleanup, init utilities
 ├── tests/
-│   └── test_cc_collab/             # cc-collab CLI tests
+│   └── test_ccx_collab/             # ccx-collab CLI tests
 │       ├── test_cli.py             # CLI entry point tests
 │       ├── test_bridge.py          # Bridge layer tests
 │       └── test_commands.py        # Command tests
 ├── docs/
-│   └── CC_COLLAB_CLI.md            # cc-collab CLI reference documentation
+│   └── CCX_COLLAB_CLI.md            # ccx-collab CLI reference documentation
 ├── .github/workflows/
 │   └── agent-orchestrator.yml      # CI/CD pipeline
-├── pyproject.toml                  # Python package configuration (cc-collab)
+├── pyproject.toml                  # Python package configuration (ccx-collab)
 ├── CLAUDE.md                       # Claude Code instructions
 ├── AGENTS.md                       # Agent role definitions
 └── requirements.txt                # Python dependencies
@@ -231,8 +231,8 @@ pre-commit install
 
 After installation, running `git commit` will automatically perform the following checks:
 
-- **ruff lint** -- Lint checks on `agent/` and `cc_collab/` Python files (E, F, W rules)
-- **ruff format check** -- Formatting checks on `agent/` and `cc_collab/` Python files
+- **ruff lint** -- Lint checks on `agent/` and `ccx_collab/` Python files (E, F, W rules)
+- **ruff format check** -- Formatting checks on `agent/` and `ccx_collab/` Python files
 - **check-json** -- Syntax validation of `agent/schemas/` JSON files
 - **validate-schemas** -- JSON Schema specification validity checks
 - **end-of-file-fixer / trailing-whitespace** -- Auto-fix end-of-file newlines and trailing whitespace

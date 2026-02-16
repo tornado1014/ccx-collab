@@ -14,10 +14,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY pyproject.toml .
 COPY LICENSE .
 COPY README.md .
-COPY cc_collab/ cc_collab/
+COPY ccx_collab/ ccx_collab/
 COPY agent/ agent/
 
-# Install the package (editable so cc_collab source stays at /app)
+# Install the package (editable so ccx_collab source stays at /app)
 RUN pip install --no-cache-dir -e .
 
 # Default environment variables (can be overridden at runtime)
@@ -26,5 +26,5 @@ ENV CLAUDE_CODE_CMD="claude"
 ENV CODEX_CLI_CMD="codex"
 ENV VERIFY_COMMANDS="true"
 
-ENTRYPOINT ["cc-collab"]
+ENTRYPOINT ["ccx-collab"]
 CMD ["--help"]

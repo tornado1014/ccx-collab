@@ -110,47 +110,47 @@ python3 agent/scripts/orchestrate.py run-retrospect \
   --out agent/results/retrospect_demo.json
 ```
 
-## cc-collab CLI
+## ccx-collab CLI
 
-`cc-collab`는 위의 셸 스크립트 및 `orchestrate.py` 워크플로를 대체하는 통합 CLI 도구입니다. [Click](https://click.palletsprojects.com/)과 [Rich](https://rich.readthedocs.io/) 기반으로 구축되었습니다.
+`ccx-collab`는 위의 셸 스크립트 및 `orchestrate.py` 워크플로를 대체하는 통합 CLI 도구입니다. [Click](https://click.palletsprojects.com/)과 [Rich](https://rich.readthedocs.io/) 기반으로 구축되었습니다.
 
 ### 설치
 
 ```bash
 pip install -e .
-cc-collab --version
+ccx-collab --version
 ```
 
 ### 전체 파이프라인 실행
 
 ```bash
 # 시뮬레이션 모드 (실제 CLI 호출 없음)
-cc-collab --simulate run --task agent/tasks/example.task.json
+ccx-collab --simulate run --task agent/tasks/example.task.json
 
 # 실제 CLI 연동 실행
-cc-collab run --task agent/tasks/example.task.json --work-id my-feature
+ccx-collab run --task agent/tasks/example.task.json --work-id my-feature
 ```
 
 ### 단계별 실행
 
 ```bash
-cc-collab validate --task agent/tasks/example.task.json --out results/validation.json
-cc-collab plan --task agent/tasks/example.task.json --out results/plan.json
-cc-collab split --task agent/tasks/example.task.json --plan results/plan.json --out results/dispatch.json
-cc-collab implement --task agent/tasks/example.task.json --dispatch results/dispatch.json --subtask-id S01 --out results/impl_S01.json
-cc-collab merge --work-id demo --input "results/impl_*.json" --out results/implement.json
-cc-collab verify --work-id demo --out results/verify.json
-cc-collab review --work-id demo --plan results/plan.json --implement results/implement.json --verify results/verify.json --out results/review.json
-cc-collab retrospect --work-id demo --review results/review.json --out results/retrospect.json
+ccx-collab validate --task agent/tasks/example.task.json --out results/validation.json
+ccx-collab plan --task agent/tasks/example.task.json --out results/plan.json
+ccx-collab split --task agent/tasks/example.task.json --plan results/plan.json --out results/dispatch.json
+ccx-collab implement --task agent/tasks/example.task.json --dispatch results/dispatch.json --subtask-id S01 --out results/impl_S01.json
+ccx-collab merge --work-id demo --input "results/impl_*.json" --out results/implement.json
+ccx-collab verify --work-id demo --out results/verify.json
+ccx-collab review --work-id demo --plan results/plan.json --implement results/implement.json --verify results/verify.json --out results/review.json
+ccx-collab retrospect --work-id demo --review results/review.json --out results/retrospect.json
 ```
 
 ### 유틸리티 명령어
 
 ```bash
-cc-collab health                          # CLI 도구 상태 확인
-cc-collab status --work-id my-feature     # 파이프라인 진행 상태 조회
-cc-collab cleanup --retention-days 7      # 오래된 결과 파일 정리
-cc-collab init --task-id FEAT-001 --title "새 기능"  # 태스크 템플릿 생성
+ccx-collab health                          # CLI 도구 상태 확인
+ccx-collab status --work-id my-feature     # 파이프라인 진행 상태 조회
+ccx-collab cleanup --retention-days 7      # 오래된 결과 파일 정리
+ccx-collab init --task-id FEAT-001 --title "새 기능"  # 태스크 템플릿 생성
 ```
 
 ### 글로벌 옵션
@@ -161,7 +161,7 @@ cc-collab init --task-id FEAT-001 --title "새 기능"  # 태스크 템플릿 �
 | `--simulate` | | 시뮬레이션 모드 (실제 CLI 호출 없음) |
 | `--version` | | 버전 정보 출력 |
 
-자세한 명령어 레퍼런스는 [docs/CC_COLLAB_CLI.md](docs/CC_COLLAB_CLI.md)를 참조하세요.
+자세한 명령어 레퍼런스는 [docs/CCX_COLLAB_CLI.md](docs/CCX_COLLAB_CLI.md)를 참조하세요.
 
 ## 프로젝트 구조
 
@@ -182,7 +182,7 @@ cc-collab init --task-id FEAT-001 --title "새 기능"  # 태스크 템플릿 �
 │   ├── tasks/                      # 입력 태스크 정의
 │   ├── tests/                      # pytest 테스트 스위트
 │   └── pipeline-config.json        # 파이프라인 설정
-├── cc_collab/                      # cc-collab CLI 패키지
+├── ccx_collab/                      # ccx-collab CLI 패키지
 │   ├── __init__.py                 # 패키지 초기화 및 버전 정보
 │   ├── cli.py                      # Click CLI 진입점
 │   ├── bridge.py                   # orchestrate.py 브릿지 레이어
@@ -193,15 +193,15 @@ cc-collab init --task-id FEAT-001 --title "새 기능"  # 태스크 템플릿 �
 │       ├── pipeline.py             # run, status 명령어
 │       └── tools.py                # health, cleanup, init 유틸리티
 ├── tests/
-│   └── test_cc_collab/             # cc-collab CLI 테스트
+│   └── test_ccx_collab/             # ccx-collab CLI 테스트
 │       ├── test_cli.py             # CLI 진입점 테스트
 │       ├── test_bridge.py          # 브릿지 레이어 테스트
 │       └── test_commands.py        # 명령어 테스트
 ├── docs/
-│   └── CC_COLLAB_CLI.md            # cc-collab CLI 레퍼런스 문서
+│   └── CCX_COLLAB_CLI.md            # ccx-collab CLI 레퍼런스 문서
 ├── .github/workflows/
 │   └── agent-orchestrator.yml      # CI/CD 파이프라인
-├── pyproject.toml                  # Python 패키지 설정 (cc-collab)
+├── pyproject.toml                  # Python 패키지 설정 (ccx-collab)
 ├── CLAUDE.md                       # Claude Code 지침
 ├── AGENTS.md                       # 에이전트 역할 정의
 └── requirements.txt                # Python 의존성
@@ -231,8 +231,8 @@ pre-commit install
 
 설치 후 `git commit`을 실행하면 다음 검사가 자동으로 수행됩니다:
 
-- **ruff lint** -- `agent/` 및 `cc_collab/` Python 파일의 린트 검사 (E, F, W 규칙)
-- **ruff format check** -- `agent/` 및 `cc_collab/` Python 파일의 포맷팅 검사
+- **ruff lint** -- `agent/` 및 `ccx_collab/` Python 파일의 린트 검사 (E, F, W 규칙)
+- **ruff format check** -- `agent/` 및 `ccx_collab/` Python 파일의 포맷팅 검사
 - **check-json** -- `agent/schemas/` JSON 파일의 구문 검증
 - **validate-schemas** -- JSON Schema 명세 유효성 검증
 - **end-of-file-fixer / trailing-whitespace** -- 파일 끝 개행 및 후행 공백 자동 수정

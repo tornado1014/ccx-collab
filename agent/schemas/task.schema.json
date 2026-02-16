@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://cc-collab.dev/schemas/task/v1.0.0",
+  "$id": "https://ccx-collab.dev/schemas/task/v1.0.0",
   "type": "object",
   "required": ["task_id", "title", "scope", "acceptance_criteria", "risk_level", "priority", "subtasks"],
   "definitions": {

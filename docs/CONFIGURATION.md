@@ -1,14 +1,14 @@
 # Configuration Reference
 
-cc-collab uses a 4-layer configuration system with clear precedence rules.
+ccx-collab uses a 4-layer configuration system with clear precedence rules.
 
 ## Configuration Precedence
 
 Settings are resolved in this order (highest priority first):
 
-1. **CLI Flags** -- `cc-collab --verbose --simulate run ...`
-2. **Project Config** -- `.cc-collab.yaml` in project root
-3. **User Config** -- `~/.cc-collab/config.yaml`
+1. **CLI Flags** -- `ccx-collab --verbose --simulate run ...`
+2. **Project Config** -- `.ccx-collab.yaml` in project root
+3. **User Config** -- `~/.ccx-collab/config.yaml`
 4. **Built-in Defaults** -- hardcoded sensible defaults
 
 Higher-priority settings override lower-priority ones. When a key appears in
@@ -16,13 +16,13 @@ multiple layers, only the highest-priority value is used.
 
 ## Configuration Files
 
-### Project Config (`.cc-collab.yaml`)
+### Project Config (`.ccx-collab.yaml`)
 
 Place in your project root directory. This file is typically shared with your
 team via version control.
 
 ```yaml
-# .cc-collab.yaml (project root)
+# .ccx-collab.yaml (project root)
 simulate: false
 verbose: false
 results_dir: "agent/results"
@@ -34,13 +34,13 @@ The project root is detected automatically by walking up the directory tree
 looking for an `agent/` directory. You can override this with the
 `CLAUDE_CODEX_ROOT` environment variable.
 
-### User Config (`~/.cc-collab/config.yaml`)
+### User Config (`~/.ccx-collab/config.yaml`)
 
 Personal preferences that apply across all projects. Useful for settings like
 `verbose` that you always want enabled during development.
 
 ```yaml
-# ~/.cc-collab/config.yaml
+# ~/.ccx-collab/config.yaml
 verbose: true
 retention_days: 14
 ```
@@ -106,7 +106,7 @@ implementation is correct. Each command must exit with code 0 to pass.
 ```yaml
 verify_commands:
   - "python3 -m pytest agent/tests/ -v"
-  - "python3 -m flake8 cc_collab/"
+  - "python3 -m flake8 ccx_collab/"
 ```
 
 This can also be overridden at runtime via the `VERIFY_COMMANDS` environment
@@ -144,7 +144,7 @@ Default verify commands in `pipeline-config.json`:
 ## Environment Variables
 
 These environment variables affect pipeline behavior. They are read by the
-orchestrator (`agent/scripts/orchestrate.py`) and by cc-collab internals.
+orchestrator (`agent/scripts/orchestrate.py`) and by ccx-collab internals.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -158,7 +158,7 @@ orchestrator (`agent/scripts/orchestrate.py`) and by cc-collab internals.
 | `AGENT_RATE_LIMIT` | Override rate limit between CLI calls (seconds) | `2` |
 | `CLI_TIMEOUT_SECONDS` | Override per-invocation CLI timeout (seconds) | `300` |
 
-**Note:** When using `cc-collab --simulate`, the tool sets `SIMULATE_AGENTS=1`
+**Note:** When using `ccx-collab --simulate`, the tool sets `SIMULATE_AGENTS=1`
 automatically. You do not need to set it manually.
 
 ### Typical Environment Setup
@@ -170,12 +170,12 @@ export CODEX_CLI_CMD="codex --approval-mode full-auto --quiet"
 export VERIFY_COMMANDS='["python3 -m pytest agent/tests/ -v"]'
 
 # Run the pipeline
-cc-collab run --task agent/tasks/example.task.json --work-id demo
+ccx-collab run --task agent/tasks/example.task.json --work-id demo
 ```
 
 ```bash
 # Simulation mode (no real CLI tools needed)
-cc-collab --simulate run --task agent/tasks/example.task.json --work-id demo
+ccx-collab --simulate run --task agent/tasks/example.task.json --work-id demo
 ```
 
 ## CLI Flag Overrides
@@ -185,16 +185,16 @@ config file values:
 
 ```bash
 # Override verbose from config
-cc-collab --verbose run --task task.json --work-id demo
+ccx-collab --verbose run --task task.json --work-id demo
 
 # Override simulate from config
-cc-collab --simulate health
+ccx-collab --simulate health
 
 # Combine both
-cc-collab --verbose --simulate run --task task.json --work-id demo
+ccx-collab --verbose --simulate run --task task.json --work-id demo
 ```
 
-These flags use `default=None` internally so that cc-collab can distinguish
+These flags use `default=None` internally so that ccx-collab can distinguish
 between "not provided" (use config file value) and "explicitly set" (override
 config file value).
 
@@ -202,18 +202,18 @@ config file value).
 
 See `docs/examples/` for complete example configuration files:
 
-- [`cc-collab.minimal.yaml`](examples/cc-collab.minimal.yaml) -- bare minimum
+- [`ccx-collab.minimal.yaml`](examples/ccx-collab.minimal.yaml) -- bare minimum
   configuration
-- [`cc-collab.full.yaml`](examples/cc-collab.full.yaml) -- all available options
+- [`ccx-collab.full.yaml`](examples/ccx-collab.full.yaml) -- all available options
   with documentation
 
 ## Configuration Loading Internals
 
-For developers working on cc-collab itself, the configuration system is
-implemented in `cc_collab/config.py`:
+For developers working on ccx-collab itself, the configuration system is
+implemented in `ccx_collab/config.py`:
 
-- `CC_COLLAB_DEFAULTS` -- dict of built-in default values
-- `load_cc_collab_config()` -- merges all 4 layers and returns a final dict
+- `CCX_COLLAB_DEFAULTS` -- dict of built-in default values
+- `load_ccx_collab_config()` -- merges all 4 layers and returns a final dict
 - `_load_yaml_file()` -- safely loads a single YAML file with error handling
 - `get_project_root()` -- detects project root via directory traversal or
   `CLAUDE_CODEX_ROOT` env var

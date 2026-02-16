@@ -1,0 +1,5 @@
+# ccx-collab minimal configuration
+# Place as .ccx-collab.yaml in your project root
+
+simulate: false
+verbose: false

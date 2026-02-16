@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://cc-collab.dev/schemas/retrospect/v1.0.0",
+  "$id": "https://ccx-collab.dev/schemas/retrospect/v1.0.0",
   "type": "object",
   "required": ["status", "summary", "next_plan", "evidence"],
   "properties": {

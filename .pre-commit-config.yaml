@@ -5,11 +5,11 @@ repos:
       - id: ruff
         name: ruff lint
         args: [--select, "E,F,W", --ignore, E501]
-        files: ^(agent|cc_collab)/
+        files: ^(agent|ccx_collab)/
       - id: ruff-format
         name: ruff format check
         args: [--check, --diff]
-        files: ^(agent|cc_collab)/
+        files: ^(agent|ccx_collab)/
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0

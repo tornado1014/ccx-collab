@@ -19,32 +19,32 @@ All schemas enforce version `1.0.0` (backward-compatible, optional field with de
 
 ## Key Commands
 
-### cc-collab CLI (recommended)
+### ccx-collab CLI (recommended)
 
 ```bash
 # Install
 pip install -e .
 
 # Run full pipeline
-cc-collab run --task <path> --work-id <id>
+ccx-collab run --task <path> --work-id <id>
 
 # Simulate (no real CLI calls)
-cc-collab --simulate run --task <path>
+ccx-collab --simulate run --task <path>
 
 # Verbose logging (DEBUG level)
-cc-collab -v run --task <path>
+ccx-collab -v run --task <path>
 
 # Individual stages
-cc-collab validate --task <path> --out <path>
-cc-collab plan --task <path> --out <path>
-cc-collab implement --task <path> --dispatch <path> --subtask-id <id> --out <path>
+ccx-collab validate --task <path> --out <path>
+ccx-collab plan --task <path> --out <path>
+ccx-collab implement --task <path> --dispatch <path> --subtask-id <id> --out <path>
 
 # Utilities
-cc-collab health                          # CLI tool health check
-cc-collab health --json --continuous      # Scheduled monitoring (JSON output)
-cc-collab status --work-id <id>           # Pipeline progress dashboard
-cc-collab cleanup --retention-days 7      # Old results cleanup
-cc-collab init --task-id <id> --title "X" # Task template generator
+ccx-collab health                          # CLI tool health check
+ccx-collab health --json --continuous      # Scheduled monitoring (JSON output)
+ccx-collab status --work-id <id>           # Pipeline progress dashboard
+ccx-collab cleanup --retention-days 7      # Old results cleanup
+ccx-collab init --task-id <id> --title "X" # Task template generator
 ```
 
 ### Legacy commands (still supported)
@@ -61,15 +61,15 @@ The pipeline supports resuming from the last successful stage:
 
 ```bash
 # Resume from where it left off
-cc-collab run --task <path> --work-id <id> --resume
+ccx-collab run --task <path> --work-id <id> --resume
 
 # Force re-run from a specific stage
-cc-collab run --task <path> --work-id <id> --resume --force-stage verify
+ccx-collab run --task <path> --work-id <id> --resume --force-stage verify
 ```
 
 ## Configuration
 
-Supports `.cc-collab.yaml` (project) and `~/.cc-collab/config.yaml` (user).
+Supports `.ccx-collab.yaml` (project) and `~/.ccx-collab/config.yaml` (user).
 Precedence: CLI flags > project config > user config > built-in defaults.
 
 ## Quality Policies
@@ -87,21 +87,21 @@ Precedence: CLI flags > project config > user config > built-in defaults.
 pip install pre-commit && pre-commit install
 ```
 
-Hooks: ruff lint/format (`agent/` + `cc_collab/`), check-json, validate-schemas, check-yaml.
+Hooks: ruff lint/format (`agent/` + `ccx_collab/`), check-json, validate-schemas, check-yaml.
 Skip in emergencies: `git commit --no-verify` (then run `pre-commit run --all-files`).
 
 ### Testing
 
 ```bash
-python3 -m pytest tests/test_cc_collab/ agent/tests/ -v  # 426 tests
+python3 -m pytest tests/test_ccx_collab/ agent/tests/ -v  # 426 tests
 ```
 
 ## Docker
 
 ```bash
-docker build -t cc-collab .
-docker run --rm cc-collab run --task /app/agent/tasks/example.task.json
-docker compose run cc-collab --help
+docker build -t ccx-collab .
+docker run --rm ccx-collab run --task /app/agent/tasks/example.task.json
+docker compose run ccx-collab --help
 ```
 
 ## Integration with Sisyphus

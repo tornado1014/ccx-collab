@@ -1,6 +1,6 @@
-# Contributing to cc-collab
+# Contributing to ccx-collab
 
-Thank you for your interest in contributing to cc-collab. This document provides
+Thank you for your interest in contributing to ccx-collab. This document provides
 guidelines and instructions for contributing to the project.
 
 ## Table of Contents
@@ -38,8 +38,8 @@ pip install -e . && pip install -r requirements.txt
 ### Verify Installation
 
 ```bash
-cc-collab --help
-cc-collab --version
+ccx-collab --help
+ccx-collab --version
 ```
 
 You should see the CLI help output listing all available subcommands
@@ -63,7 +63,7 @@ status, health, cleanup, init).
 3. **Run the test suite.**
 
    ```bash
-   python3 -m pytest tests/test_cc_collab/ agent/tests/ -v
+   python3 -m pytest tests/test_ccx_collab/ agent/tests/ -v
    ```
 
 4. **Run the linter and formatter.**
@@ -123,8 +123,8 @@ The following hooks run automatically on every commit:
 
 | Hook | Scope | Description |
 |------|-------|-------------|
-| `ruff` (lint) | `agent/`, `cc_collab/` | Lint Python files |
-| `ruff-format` | `agent/`, `cc_collab/` | Check formatting |
+| `ruff` (lint) | `agent/`, `ccx_collab/` | Lint Python files |
+| `ruff-format` | `agent/`, `ccx_collab/` | Check formatting |
 | `check-json` | `agent/schemas/*.json` | Validate JSON syntax |
 | `validate-schemas` | `agent/schemas/*.json` | Validate JSON Schema structure (Draft 7) |
 | `check-yaml` | all YAML files | Validate YAML syntax |
@@ -149,7 +149,7 @@ In emergencies you can skip hooks with `git commit --no-verify`, but please run
 
 ```
 Claude_Codex_Collaboration/
-├── cc_collab/                 # Python package (pip-installable CLI)
+├── ccx_collab/                 # Python package (pip-installable CLI)
 │   ├── __init__.py            #   Package version
 │   ├── cli.py                 #   Click CLI entry point
 │   ├── bridge.py              #   Bridge to orchestrate.py
@@ -166,7 +166,7 @@ Claude_Codex_Collaboration/
 │   ├── tests/                 #   Engine-level tests
 │   └── results/               #   Pipeline output artifacts
 ├── tests/                     # CLI-level tests
-│   └── test_cc_collab/        #   Bridge, CLI, command tests
+│   └── test_ccx_collab/        #   Bridge, CLI, command tests
 ├── docs/                      # Additional documentation
 ├── .github/workflows/         # CI/CD (orchestrator + PyPI publish)
 ├── pyproject.toml             # Build config and metadata
@@ -185,10 +185,10 @@ For detailed design information, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ```bash
 # Run the full test suite (435+ tests)
-python3 -m pytest tests/test_cc_collab/ agent/tests/ -v
+python3 -m pytest tests/test_ccx_collab/ agent/tests/ -v
 
 # Run only CLI tests
-python3 -m pytest tests/test_cc_collab/ -v
+python3 -m pytest tests/test_ccx_collab/ -v
 
 # Run only engine tests
 python3 -m pytest agent/tests/ -v
@@ -197,7 +197,7 @@ python3 -m pytest agent/tests/ -v
 python3 -m pytest -k "test_validate_missing_task"
 
 # Run tests with short tracebacks
-python3 -m pytest tests/test_cc_collab/ agent/tests/ -v --tb=short
+python3 -m pytest tests/test_ccx_collab/ agent/tests/ -v --tb=short
 ```
 
 ### Test Organization
@@ -206,7 +206,7 @@ python3 -m pytest tests/test_cc_collab/ agent/tests/ -v --tb=short
   (`test_orchestrate.py`), JSON schema validation (`test_schemas.py`),
   wrapper scripts (`test_wrappers.py`), and cleanup utilities
   (`test_cleanup.py`).
-- **`tests/test_cc_collab/`** -- Tests for the CLI layer including bridge
+- **`tests/test_ccx_collab/`** -- Tests for the CLI layer including bridge
   functions (`test_bridge.py`), Click commands (`test_cli.py`), and
   subcommand behavior (`test_commands.py`).
 
@@ -269,8 +269,8 @@ When filing a bug report, include:
 - **Expected behavior** -- What you expected to happen.
 - **Actual behavior** -- What actually happened, including error messages and
   stack traces.
-- **Environment** -- Python version, operating system, cc-collab version
-  (`cc-collab --version`), and installation method (pip, Docker, development).
+- **Environment** -- Python version, operating system, ccx-collab version
+  (`ccx-collab --version`), and installation method (pip, Docker, development).
 
 ### Feature Requests
 
@@ -282,5 +282,5 @@ When proposing a new feature, include:
 
 ## License
 
-By contributing to cc-collab, you agree that your contributions will be licensed
+By contributing to ccx-collab, you agree that your contributions will be licensed
 under the [MIT License](LICENSE).

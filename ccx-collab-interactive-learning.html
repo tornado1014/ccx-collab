@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ccx-collab | Claude Code + Codex CLI 협업 자동화 시스템</title>
+
+    <!-- Fonts & Libraries -->
+    <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #6366F1;
+            --secondary: #8B5CF6;
+            --accent: #06B6D4;
+            --bg-start: #F8FAFC;
+            --bg-end: #FFFFFF;
+            --text-dark: #1E293B;
+            --text-muted: #64748B;
+            --card-bg: #FFFFFF;
+            --code-bg: #1E293B;
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, var(--bg-start) 0%, var(--bg-end) 100%);
+            color: var(--text-dark);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Hero Section */
+        .hero {
+            position: relative;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        }
+
+        .hero-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            color: white;
+            padding: 2rem;
+            max-width: 1200px;
+        }
+
+        .hero h1 {
+            font-size: clamp(3rem, 8vw, 6rem);
+            font-weight: 900;
+            margin-bottom: 1rem;
+            letter-spacing: -0.02em;
+            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .hero-subtitle {
+            font-size: clamp(1.2rem, 3vw, 2rem);
+            font-weight: 300;
+            margin-bottom: 3rem;
+            opacity: 0.95;
+        }
+
+        .hero-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 2rem;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 2rem 1.5rem;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 900;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 1rem;
+            opacity: 0.9;
+            font-weight: 500;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        /* Sections */
+        section {
+            padding: 120px 0;
+            position: relative;
+        }
+
+        .section-title {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 800;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .section-subtitle {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            margin-bottom: 4rem;
+            max-width: 600px;
+        }
+
+        /* Architecture Cards */
+        .architecture-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin-bottom: 4rem;
+        }
+
+        .arch-card {
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 2.5rem;
+            box-shadow: var(--shadow-lg);
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .arch-card:hover {
+            transform: translateY(-8px);
+            border-color: var(--primary);
+            box-shadow: var(--shadow-xl);
+        }
+
+        .arch-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .arch-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .file-tree {
+            background: var(--code-bg);
+            color: #94a3b8;
+            padding: 1.5rem;
+            border-radius: 12px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.8;
+            overflow-x: auto;
+        }
+
+        .file-tree .folder { color: #60a5fa; font-weight: 600; }
+        .file-tree .file { color: #a78bfa; }
+        .file-tree .comment { color: #6b7280; font-style: italic; }
+
+        /* Bridge Pattern Visual */
+        .bridge-visual {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 2rem;
+            margin: 3rem 0;
+            padding: 3rem;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+            border-radius: 24px;
+            border: 2px solid var(--primary);
+        }
+
+        .bridge-box {
+            flex: 1;
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: var(--shadow-md);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .bridge-box:hover {
+            transform: scale(1.05);
+        }
+
+        .bridge-arrow {
+            font-size: 3rem;
+            color: var(--primary);
+            font-weight: bold;
+        }
+
+        .bridge-label {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
+
+        /* Pipeline Flow */
+        .pipeline-flow {
+            position: relative;
+            padding: 4rem 0;
+        }
+
+        .pipeline-stage {
+            display: flex;
+            gap: 3rem;
+            margin-bottom: 3rem;
+            align-items: center;
+        }
+
+        .pipeline-stage:nth-child(even) {
+            flex-direction: row-reverse;
+        }
+
+        .stage-number {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: 900;
+            color: white;
+            box-shadow: var(--shadow-lg);
+            flex-shrink: 0;
+        }
+
+        .stage-content {
+            flex: 1;
+            background: var(--card-bg);
+            padding: 2.5rem;
+            border-radius: 24px;
+            box-shadow: var(--shadow-lg);
+            border-left: 4px solid var(--primary);
+        }
+
+        .stage-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            color: var(--primary);
+        }
+
+        .stage-description {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+        }
+
+        .stage-role {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        /* Command Tables */
+        .command-section {
+            margin-bottom: 4rem;
+        }
+
+        .command-category {
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 2.5rem;
+            box-shadow: var(--shadow-lg);
+            margin-bottom: 2rem;
+        }
+
+        .command-category h3 {
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            color: var(--primary);
+        }
+
+        .command-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 1rem;
+        }
+
+        .command-table th {
+            text-align: left;
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding-bottom: 1rem;
+        }
+
+        .command-table td {
+            padding: 1.25rem;
+            background: var(--bg-start);
+            border-radius: 12px;
+        }
+
+        .command-table tr td:first-child {
+            font-family: 'Monaco', monospace;
+            color: var(--primary);
+            font-weight: 600;
+            border-left: 3px solid var(--primary);
+        }
+
+        /* Code Blocks */
+        .code-block {
+            background: var(--code-bg);
+            color: #e2e8f0;
+            padding: 2rem;
+            border-radius: 16px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.95rem;
+            line-height: 1.8;
+            overflow-x: auto;
+            box-shadow: var(--shadow-lg);
+            margin: 2rem 0;
+        }
+
+        .code-comment { color: #64748b; }
+        .code-command { color: #60a5fa; }
+        .code-flag { color: #a78bfa; }
+        .code-string { color: #34d399; }
+
+        /* Charts */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 3rem;
+            margin: 4rem 0;
+        }
+
+        .chart-card {
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 2.5rem;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .chart-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 2rem;
+            color: var(--primary);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        /* Feature Cards */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+        }
+
+        .feature-card {
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 2.5rem;
+            box-shadow: var(--shadow-md);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.3s ease;
+        }
+
+        .feature-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-8px);
+            box-shadow: var(--shadow-xl);
+        }
+
+        .feature-number {
+            display: inline-block;
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .feature-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: var(--text-dark);
+        }
+
+        .feature-card p {
+            color: var(--text-muted);
+            line-height: 1.7;
+        }
+
+        /* Config Hierarchy */
+        .config-hierarchy {
+            max-width: 700px;
+            margin: 3rem auto;
+        }
+
+        .config-layer {
+            background: var(--card-bg);
+            border: 2px solid var(--primary);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+            box-shadow: var(--shadow-md);
+            transition: all 0.3s ease;
+        }
+
+        .config-layer:hover {
+            transform: translateX(10px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .config-layer h4 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+        }
+
+        .config-layer p {
+            color: var(--text-muted);
+            font-family: 'Monaco', monospace;
+            font-size: 0.95rem;
+        }
+
+        .priority-badge {
+            position: absolute;
+            top: -12px;
+            right: 20px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        /* Assessment Cards */
+        .assessment-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .assessment-card {
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 2.5rem;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .assessment-card h3 {
+            font-size: 1.75rem;
+            margin-bottom: 1.5rem;
+            color: var(--primary);
+        }
+
+        .assessment-card ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .assessment-card li {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--bg-start);
+            color: var(--text-dark);
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .assessment-card li::before {
+            content: '✓';
+            color: var(--primary);
+            font-weight: bold;
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+
+        .recommendation {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+            border-left: 4px solid var(--primary);
+            padding: 2rem;
+            border-radius: 16px;
+            margin-top: 2rem;
+        }
+
+        .recommendation h4 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+
+        /* Roadmap Timeline */
+        .roadmap-timeline {
+            position: relative;
+            padding: 3rem 0;
+        }
+
+        .timeline-item {
+            display: flex;
+            gap: 3rem;
+            margin-bottom: 4rem;
+            align-items: flex-start;
+        }
+
+        .timeline-marker {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 1.25rem;
+            color: white;
+            box-shadow: var(--shadow-lg);
+            flex-shrink: 0;
+        }
+
+        .timeline-content {
+            flex: 1;
+            background: var(--card-bg);
+            padding: 2.5rem;
+            border-radius: 24px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .timeline-content h3 {
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            color: var(--primary);
+        }
+
+        .timeline-content ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .timeline-content li {
+            padding: 0.5rem 0;
+            color: var(--text-dark);
+            font-size: 1.1rem;
+        }
+
+        .timeline-content li::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: var(--primary);
+            border-radius: 50%;
+            margin-right: 0.75rem;
+        }
+
+        .status-done::before { background: #10b981 !important; }
+        .status-pending::before { background: #f59e0b !important; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .pipeline-stage,
+            .pipeline-stage:nth-child(even) {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .bridge-visual {
+                flex-direction: column;
+            }
+
+            .bridge-arrow {
+                transform: rotate(90deg);
+            }
+
+            .timeline-item {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+
+        /* Animation selectors - NO visual CSS properties here!
+           GSAP from() animates FROM specified values TO current CSS state.
+           If CSS has opacity:0, animation goes 0→0 = invisible forever. */
+        .fade-in { }
+        .slide-in-left { }
+        .slide-in-right { }
+        .scale-in { }
+    </style>
+</head>
+<body>
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-background" id="particles"></div>
+        <div class="hero-content">
+            <h1 class="fade-in">ccx-collab</h1>
+            <p class="hero-subtitle fade-in">Claude Code + Codex CLI 협업 자동화 시스템</p>
+            <div class="hero-stats">
+                <div class="stat-card scale-in">
+                    <span class="stat-number">384</span>
+                    <span class="stat-label">Tests</span>
+                </div>
+                <div class="stat-card scale-in">
+                    <span class="stat-number">13</span>
+                    <span class="stat-label">CLI Commands</span>
+                </div>
+                <div class="stat-card scale-in">
+                    <span class="stat-number">7</span>
+                    <span class="stat-label">Pipeline Stages</span>
+                </div>
+                <div class="stat-card scale-in">
+                    <span class="stat-number">6</span>
+                    <span class="stat-label">JSON Schemas</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Architecture Section -->
+    <section>
+        <div class="container">
+            <h2 class="section-title fade-in">프로젝트 구조</h2>
+            <p class="section-subtitle fade-in">모듈화된 아키텍처로 확장 가능한 협업 파이프라인</p>
+
+            <div class="architecture-grid">
+                <div class="arch-card fade-in">
+                    <h3><span class="arch-icon">📦</span> CLI Package</h3>
+                    <div class="file-tree">
+<span class="folder">ccx_collab/</span>          <span class="comment"># ~1,272 lines</span>
+├── __init__.py      <span class="comment"># Version: 0.1.0</span>
+├── <span class="file">cli.py</span>           <span class="comment"># Click entry</span>
+├── <span class="file">bridge.py</span>        <span class="comment"># Bridge Pattern</span>
+├── <span class="file">config.py</span>        <span class="comment"># 4-layer config</span>
+├── <span class="file">output.py</span>        <span class="comment"># Rich output</span>
+└── commands/
+    ├── <span class="file">stages.py</span>    <span class="comment"># 8 stages</span>
+    ├── <span class="file">pipeline.py</span>  <span class="comment"># run, status</span>
+    └── <span class="file">tools.py</span>     <span class="comment"># health, cleanup</span>
+                    </div>
+                </div>
+
+                <div class="arch-card fade-in">
+                    <h3><span class="arch-icon">⚙️</span> Core Engine</h3>
+                    <div class="file-tree">
+<span class="folder">agent/scripts/</span>
+└── <span class="file">orchestrate.py</span>   <span class="comment"># 1,476 lines</span>
+    <span class="comment"># - Argparse CLI</span>
+    <span class="comment"># - Pipeline engine</span>
+    <span class="comment"># - AI agent calls</span>
+    <span class="comment"># - Result validation</span>
+
+<span class="folder">agent/schemas/</span>     <span class="comment"># 6 schemas</span>
+├── task.schema.json
+├── cli-envelope.schema.json
+├── plan-result.schema.json
+├── implement-result.schema.json
+├── review-result.schema.json
+└── retrospect.schema.json
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bridge Pattern Visual -->
+            <div class="bridge-visual fade-in">
+                <div class="bridge-box">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">🔧</div>
+                    <h4 style="font-size: 1.5rem; margin-bottom: 0.5rem;">ccx-collab CLI</h4>
+                    <p class="bridge-label">Click Framework</p>
+                    <p class="bridge-label">User-friendly interface</p>
+                </div>
+
+                <div class="bridge-arrow">→</div>
+
+                <div class="bridge-box">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">🌉</div>
+                    <h4 style="font-size: 1.5rem; margin-bottom: 0.5rem;">bridge.py</h4>
+                    <p class="bridge-label">Namespace Adapter</p>
+                    <p class="bridge-label">Zero modifications</p>
+                </div>
+
+                <div class="bridge-arrow">→</div>
+
+                <div class="bridge-box">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">⚡</div>
+                    <h4 style="font-size: 1.5rem; margin-bottom: 0.5rem;">orchestrate.py</h4>
+                    <p class="bridge-label">Argparse Engine</p>
+                    <p class="bridge-label">Legacy compatibility</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pipeline Flow Section -->
+    <section style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05));">
+        <div class="container">
+            <h2 class="section-title fade-in">7단계 파이프라인</h2>
+            <p class="section-subtitle fade-in">자동화된 개발 워크플로우</p>
+
+            <div class="pipeline-flow">
+                <div class="pipeline-stage">
+                    <div class="stage-number fade-in">1</div>
+                    <div class="stage-content fade-in">
+                        <h3 class="stage-title">validate</h3>
+                        <p class="stage-description">Task JSON 스키마 검증 및 필수 필드 확인</p>
+                        <span class="stage-role">System</span>
+                    </div>
+                </div>
+
+                <div class="pipeline-stage">
+                    <div class="stage-number fade-in">2</div>
+                    <div class="stage-content fade-in">
+                        <h3 class="stage-title">plan</h3>
+                        <p class="stage-description">Claude AI가 구현 계획 수립 및 아키텍처 설계</p>
+                        <span class="stage-role">Architect (Claude Code)</span>
+                    </div>
+                </div>
+
+                <div class="pipeline-stage">
+                    <div class="stage-number fade-in">3</div>
+                    <div class="stage-content fade-in">
+                        <h3 class="stage-title">split</h3>
+                        <p class="stage-description">서브태스크로 분할하여 병렬 처리 준비</p>
+                        <span class="stage-role">System</span>
+                    </div>
+                </div>
+
+                <div class="pipeline-stage">
+                    <div class="stage-number fade-in">4</div>
+                    <div class="stage-content fade-in">
+                        <h3 class="stage-title">implement</h3>
+                        <p class="stage-description">ThreadPoolExecutor로 병렬 구현 실행</p>
+                        <span class="stage-role">Builder (Codex CLI)</span>
+                    </div>
+                </div>
+
+                <div class="pipeline-stage">
+                    <div class="stage-number fade-in">5</div>
+                    <div class="stage-content fade-in">
+                        <h3 class="stage-title">merge</h3>
+                        <p class="stage-description">서브태스크 결과 병합 및 충돌 해결</p>
+                        <span class="stage-role">System</span>
+                    </div>
+                </div>
+
+                <div class="pipeline-stage">
+                    <div class="stage-number fade-in">6</div>
+                    <div class="stage-content fade-in">
+                        <h3 class="stage-title">verify</h3>
+                        <p class="stage-description">자동화 검증 명령어 실행 (pytest, lint 등)</p>
+                        <span class="stage-role">System</span>
+                    </div>
+                </div>
+
+                <div class="pipeline-stage">
+                    <div class="stage-number fade-in">7</div>
+                    <div class="stage-content fade-in">
+                        <h3 class="stage-title">review</h3>
+                        <p class="stage-description">리뷰 게이트 + 회고 생성 및 품질 확인</p>
+                        <span class="stage-role">Architect (Claude Code)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CLI Commands Section -->
+    <section>
+        <div class="container">
+            <h2 class="section-title fade-in">13개 CLI 커맨드</h2>
+            <p class="section-subtitle fade-in">완전한 파이프라인 제어</p>
+
+            <div class="command-section">
+                <div class="command-category fade-in">
+                    <h3>Pipeline Stages (8)</h3>
+                    <table class="command-table">
+                        <thead>
+                            <tr>
+                                <th>Command</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>validate</td>
+                                <td>태스크 JSON 스키마 검증</td>
+                            </tr>
+                            <tr>
+                                <td>plan</td>
+                                <td>AI 기반 구현 계획</td>
+                            </tr>
+                            <tr>
+                                <td>split</td>
+                                <td>서브태스크 분할</td>
+                            </tr>
+                            <tr>
+                                <td>implement</td>
+                                <td>코드 구현 실행</td>
+                            </tr>
+                            <tr>
+                                <td>merge</td>
+                                <td>결과 병합</td>
+                            </tr>
+                            <tr>
+                                <td>verify</td>
+                                <td>자동 검증</td>
+                            </tr>
+                            <tr>
+                                <td>review</td>
+                                <td>리뷰 게이트</td>
+                            </tr>
+                            <tr>
+                                <td>retrospect</td>
+                                <td>회고 생성</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="command-category fade-in">
+                    <h3>Pipeline Control (2)</h3>
+                    <table class="command-table">
+                        <thead>
+                            <tr>
+                                <th>Command</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>run</td>
+                                <td>전체 파이프라인 실행 (--resume, --force-stage)</td>
+                            </tr>
+                            <tr>
+                                <td>status</td>
+                                <td>파이프라인 진행 상태 Rich 테이블</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="command-category fade-in">
+                    <h3>Utility (3)</h3>
+                    <table class="command-table">
+                        <thead>
+                            <tr>
+                                <th>Command</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>health</td>
+                                <td>CLI 도구 헬스체크 (--continuous, --json)</td>
+                            </tr>
+                            <tr>
+                                <td>cleanup</td>
+                                <td>오래된 결과 파일 정리</td>
+                            </tr>
+                            <tr>
+                                <td>init</td>
+                                <td>태스크 템플릿 생성</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Usage Examples -->
+            <div class="fade-in">
+                <h3 style="font-size: 2rem; margin: 3rem 0 2rem; color: var(--primary);">사용 예시</h3>
+                <div class="code-block">
+<span class="code-comment"># 설치</span>
+<span class="code-command">pip install</span> ccx-collab
+
+<span class="code-comment"># 전체 파이프라인 실행</span>
+<span class="code-command">ccx-collab run</span> <span class="code-flag">--task</span> <span class="code-string">agent/tasks/example.task.json</span>
+
+<span class="code-comment"># 실패 시 이어서 실행</span>
+<span class="code-command">ccx-collab run</span> <span class="code-flag">--task</span> <span class="code-string">task.json</span> <span class="code-flag">--resume</span>
+
+<span class="code-comment"># 특정 단계 재실행</span>
+<span class="code-command">ccx-collab run</span> <span class="code-flag">--task</span> <span class="code-string">task.json</span> <span class="code-flag">--resume --force-stage</span> verify
+
+<span class="code-comment"># 헬스체크</span>
+<span class="code-command">ccx-collab health</span> <span class="code-flag">--continuous --interval</span> 30
+
+<span class="code-comment"># 태스크 생성</span>
+<span class="code-command">ccx-collab init</span> <span class="code-flag">--task-id</span> my-feature <span class="code-flag">--title</span> <span class="code-string">"새 기능 추가"</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Charts Section -->
+    <section style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05));">
+        <div class="container">
+            <h2 class="section-title fade-in">프로젝트 성장</h2>
+            <p class="section-subtitle fade-in">데이터로 보는 발전 과정</p>
+
+            <div class="charts-grid">
+                <div class="chart-card fade-in">
+                    <h3>테스트 성장 추이</h3>
+                    <div class="chart-container">
+                        <canvas id="testGrowthChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-card fade-in">
+                    <h3>파일 분포</h3>
+                    <div class="chart-container">
+                        <canvas id="fileDistributionChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-card fade-in">
+                    <h3>코드 라인 수</h3>
+                    <div class="chart-container">
+                        <canvas id="codeLinesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section>
+        <div class="container">
+            <h2 class="section-title fade-in">핵심 기능</h2>
+            <p class="section-subtitle fade-in">강력하고 유연한 협업 도구</p>
+
+            <div class="features-grid">
+                <div class="feature-card fade-in">
+                    <div class="feature-number">1</div>
+                    <h3>Bridge 패턴</h3>
+                    <p>orchestrate.py 수정 없이 CLI 래핑. 기존 코드와 완벽한 호환성 유지.</p>
+                </div>
+
+                <div class="feature-card fade-in">
+                    <div class="feature-number">2</div>
+                    <h3>4단계 설정</h3>
+                    <p>CLI > 프로젝트 > 사용자 > 기본값 계층으로 유연한 설정 관리.</p>
+                </div>
+
+                <div class="feature-card fade-in">
+                    <div class="feature-number">3</div>
+                    <h3>파이프라인 Resume</h3>
+                    <p>실패 지점에서 이어서 실행. 시간과 비용 절약.</p>
+                </div>
+
+                <div class="feature-card fade-in">
+                    <div class="feature-number">4</div>
+                    <h3>병렬 실행</h3>
+                    <p>ThreadPoolExecutor로 서브태스크 동시 처리. 빠른 구현.</p>
+                </div>
+
+                <div class="feature-card fade-in">
+                    <div class="feature-number">5</div>
+                    <h3>스키마 버전관리</h3>
+                    <p>하위호환 보장. 안정적인 업그레이드 경로.</p>
+                </div>
+
+                <div class="feature-card fade-in">
+                    <div class="feature-number">6</div>
+                    <h3>Docker 지원</h3>
+                    <p>컨테이너 기반 실행. 격리된 환경에서 안전한 테스트.</p>
+                </div>
+
+                <div class="feature-card fade-in">
+                    <div class="feature-number">7</div>
+                    <h3>연속 헬스체크</h3>
+                    <p>모니터링 루프로 CLI 도구 상태 실시간 확인.</p>
+                </div>
+
+                <div class="feature-card fade-in">
+                    <div class="feature-number">8</div>
+                    <h3>PyPI 배포</h3>
+                    <p>pip install ccx-collab으로 간편한 설치.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Configuration Section -->
+    <section style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05));">
+        <div class="container">
+            <h2 class="section-title fade-in">설정 계층</h2>
+            <p class="section-subtitle fade-in">우선순위 기반 4단계 설정 시스템</p>
+
+            <div class="config-hierarchy">
+                <div class="config-layer fade-in">
+                    <span class="priority-badge">최우선</span>
+                    <h4>CLI Flags</h4>
+                    <p>ccx-collab --verbose --simulate</p>
+                </div>
+
+                <div class="config-layer fade-in">
+                    <h4>Project Config</h4>
+                    <p>.ccx-collab.yaml</p>
+                </div>
+
+                <div class="config-layer fade-in">
+                    <h4>User Config</h4>
+                    <p>~/.ccx-collab/config.yaml</p>
+                </div>
+
+                <div class="config-layer fade-in">
+                    <span class="priority-badge">최하위</span>
+                    <h4>Built-in Defaults</h4>
+                    <p>CCX_COLLAB_DEFAULTS</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Web UI Assessment Section -->
+    <section>
+        <div class="container">
+            <h2 class="section-title fade-in">웹 UI 개발 평가</h2>
+            <p class="section-subtitle fade-in">현재 단계에서의 전략적 판단</p>
+
+            <div class="assessment-grid">
+                <div class="assessment-card fade-in">
+                    <h3>현재 CLI가 충분한 이유</h3>
+                    <ul>
+                        <li>13개 커맨드로 모든 기능 커버</li>
+                        <li>Rich 라이브러리로 시각적 출력 지원</li>
+                        <li>--json 출력으로 자동화 연동 가능</li>
+                        <li>파이프라인 resume로 안정적 운영</li>
+                    </ul>
+                </div>
+
+                <div class="assessment-card fade-in">
+                    <h3>웹 UI가 필요해지는 시나리오</h3>
+                    <ul>
+                        <li>팀 규모 확대 (비개발자 사용)</li>
+                        <li>실시간 파이프라인 모니터링 대시보드</li>
+                        <li>다수 프로젝트 동시 관리</li>
+                        <li>태스크 히스토리/분석 시각화</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="recommendation fade-in">
+                <h4>추천: 현 단계에서는 CLI 완성도 높이기 우선</h4>
+                <ul style="list-style: none; padding: 0;">
+                    <li style="padding: 0.5rem 0; border-bottom: 1px solid rgba(99, 102, 241, 0.1);">✓ PyPI 릴리스 (v0.1.0) → 사용자 피드백 수집</li>
+                    <li style="padding: 0.5rem 0; border-bottom: 1px solid rgba(99, 102, 241, 0.1);">✓ 영문 README → 글로벌 도달</li>
+                    <li style="padding: 0.5rem 0; border-bottom: 1px solid rgba(99, 102, 241, 0.1);">✓ 예제 태스크 갤러리 → 온보딩 개선</li>
+                    <li style="padding: 0.5rem 0;">✓ 웹 UI는 v0.2.0+ 에서 FastAPI + HTMX 경량 대시보드 고려</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- Roadmap Section -->
+    <section style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05));">
+        <div class="container">
+            <h2 class="section-title fade-in">로드맵</h2>
+            <p class="section-subtitle fade-in">지속적인 발전 계획</p>
+
+            <div class="roadmap-timeline">
+                <div class="timeline-item fade-in">
+                    <div class="timeline-marker">v0.1.0</div>
+                    <div class="timeline-content">
+                        <h3>현재</h3>
+                        <ul>
+                            <li class="status-done">✓ 13 CLI 커맨드</li>
+                            <li class="status-done">✓ 384 테스트</li>
+                            <li class="status-done">✓ Docker 지원</li>
+                            <li class="status-pending">⬜ PyPI 릴리스</li>
+                            <li class="status-pending">⬜ 영문 README</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="timeline-item fade-in">
+                    <div class="timeline-marker">v0.2.0</div>
+                    <div class="timeline-content">
+                        <h3>계획</h3>
+                        <ul>
+                            <li class="status-pending">Bash/Zsh completion</li>
+                            <li class="status-pending">Config 문서화</li>
+                            <li class="status-pending">예제 태스크 갤러리</li>
+                            <li class="status-pending">CONTRIBUTING.md</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="timeline-item fade-in">
+                    <div class="timeline-marker">v0.3.0+</div>
+                    <div class="timeline-content">
+                        <h3>미래</h3>
+                        <ul>
+                            <li class="status-pending">웹 대시보드 (FastAPI + HTMX)</li>
+                            <li class="status-pending">Webhook 알림</li>
+                            <li class="status-pending">Pipeline 시각화 (Mermaid)</li>
+                            <li class="status-pending">i18n 다국어</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        // Register GSAP plugins
+        gsap.registerPlugin(ScrollTrigger);
+
+        // Particle animation in hero
+        const particlesContainer = document.getElementById('particles');
+        for (let i = 0; i < 50; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.top = Math.random() * 100 + '%';
+            particlesContainer.appendChild(particle);
+
+            gsap.to(particle, {
+                y: 'random(-100, 100)',
+                x: 'random(-100, 100)',
+                duration: 'random(3, 6)',
+                repeat: -1,
+                yoyo: true,
+                ease: 'sine.inOut'
+            });
+        }
+
+        // Hero animations
+        gsap.from('.hero h1', {
+            opacity: 0,
+            y: 50,
+            duration: 1,
+            delay: 0.3
+        });
+
+        gsap.from('.hero-subtitle', {
+            opacity: 0,
+            y: 30,
+            duration: 1,
+            delay: 0.6
+        });
+
+        gsap.from('.stat-card', {
+            opacity: 0,
+            scale: 0.8,
+            duration: 0.8,
+            stagger: 0.1,
+            delay: 0.9
+        });
+
+        // Scroll-triggered animations
+        gsap.utils.toArray('.fade-in').forEach((elem, index) => {
+            gsap.from(elem, {
+                scrollTrigger: {
+                    trigger: elem,
+                    start: 'top 85%',
+                    toggleActions: 'play none none none'
+                },
+                opacity: 0,
+                y: 50,
+                duration: 0.8,
+                delay: index % 3 * 0.1
+            });
+        });
+
+        gsap.utils.toArray('.slide-in-left').forEach(elem => {
+            gsap.from(elem, {
+                scrollTrigger: {
+                    trigger: elem,
+                    start: 'top 85%'
+                },
+                opacity: 0,
+                x: -50,
+                duration: 0.8
+            });
+        });
+
+        gsap.utils.toArray('.slide-in-right').forEach(elem => {
+            gsap.from(elem, {
+                scrollTrigger: {
+                    trigger: elem,
+                    start: 'top 85%'
+                },
+                opacity: 0,
+                x: 50,
+                duration: 0.8
+            });
+        });
+
+        // Charts
+        const chartColors = {
+            primary: '#6366F1',
+            secondary: '#8B5CF6',
+            accent: '#06B6D4',
+            success: '#10b981',
+            warning: '#f59e0b',
+            danger: '#ef4444'
+        };
+
+        // Test Growth Chart
+        new Chart(document.getElementById('testGrowthChart'), {
+            type: 'line',
+            data: {
+                labels: ['Phase 1', 'Phase 2', 'Phase 3', 'Phase 4', 'Phase 5'],
+                datasets: [{
+                    label: 'Tests',
+                    data: [232, 267, 319, 345, 384],
+                    borderColor: chartColors.primary,
+                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 6,
+                    pointHoverRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+
+        // File Distribution Chart
+        new Chart(document.getElementById('fileDistributionChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['ccx_collab/', 'agent/scripts/', 'agent/schemas/', 'tests/', 'CI/Docker', 'Docs'],
+                datasets: [{
+                    data: [9, 4, 6, 8, 5, 4],
+                    backgroundColor: [
+                        chartColors.primary,
+                        chartColors.secondary,
+                        chartColors.accent,
+                        chartColors.success,
+                        chartColors.warning,
+                        chartColors.danger
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+
+        // Code Lines Chart
+        new Chart(document.getElementById('codeLinesChart'), {
+            type: 'bar',
+            data: {
+                labels: ['orchestrate.py', 'ccx_collab/', 'tests/', 'schemas', 'CI/Docker'],
+                datasets: [{
+                    label: 'Lines of Code',
+                    data: [1476, 1272, 2800, 450, 280],
+                    backgroundColor: [
+                        chartColors.primary,
+                        chartColors.secondary,
+                        chartColors.accent,
+                        chartColors.success,
+                        chartColors.warning
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

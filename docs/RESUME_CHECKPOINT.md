@@ -1,6 +1,6 @@
 # Pipeline Resume & Checkpoint Guide
 
-cc-collab's pipeline supports resuming from the last successful stage, saving time when failures occur mid-pipeline. Instead of restarting from scratch, you pick up right where things broke.
+ccx-collab's pipeline supports resuming from the last successful stage, saving time when failures occur mid-pipeline. Instead of restarting from scratch, you pick up right where things broke.
 
 ---
 
@@ -56,7 +56,7 @@ Any other status value (such as `"failed"` or `"error"`) means the stage is **no
 
 ### Resume Logic
 
-When `--resume` is passed to `cc-collab run`, the pipeline scans result files **sequentially** from the first stage. It skips stages that have completed result files, stopping as soon as it encounters an incomplete stage. From that point onward, all stages run normally.
+When `--resume` is passed to `ccx-collab run`, the pipeline scans result files **sequentially** from the first stage. It skips stages that have completed result files, stopping as soon as it encounters an incomplete stage. From that point onward, all stages run normally.
 
 This sequential approach is deliberate: later stages depend on the output of earlier stages, so skipping stage 3 but running stage 4 would produce incorrect results.
 
@@ -69,7 +69,7 @@ Your pipeline fails at the verify stage due to a test error.
 ### Initial run -- fails at verify
 
 ```bash
-cc-collab run --task agent/tasks/my-feature.task.json --work-id proj-001
+ccx-collab run --task agent/tasks/my-feature.task.json --work-id proj-001
 ```
 
 Output:
@@ -100,7 +100,7 @@ At this point, result files exist for stages 1 through 5 in `agent/results/`.
 # Fix whatever caused verification to fail (test code, config, etc.)
 
 # Resume from where it left off
-cc-collab run --task agent/tasks/my-feature.task.json --work-id proj-001 --resume
+ccx-collab run --task agent/tasks/my-feature.task.json --work-id proj-001 --resume
 ```
 
 Output:
@@ -136,7 +136,7 @@ Stages 1 through 5 were skipped because their result files existed with passing 
 You updated your task definition and want to re-run the plan stage, even though it already has a passing result file.
 
 ```bash
-cc-collab run \
+ccx-collab run \
   --task agent/tasks/my-feature.task.json \
   --work-id proj-001 \
   --resume \
@@ -179,10 +179,10 @@ You can force any of these stages: `validate`, `plan`, `split`, `implement`, `me
 
 ```bash
 # Force re-run from split onward
-cc-collab run --task my-task.json --work-id proj-001 --resume --force-stage split
+ccx-collab run --task my-task.json --work-id proj-001 --resume --force-stage split
 
 # Force re-run only verify and review
-cc-collab run --task my-task.json --work-id proj-001 --resume --force-stage verify
+ccx-collab run --task my-task.json --work-id proj-001 --resume --force-stage verify
 ```
 
 ---
@@ -195,13 +195,13 @@ Build your pipeline output step by step, reviewing intermediate results before p
 
 ```bash
 # Run validation
-cc-collab validate \
+ccx-collab validate \
   --task agent/tasks/my-feature.task.json \
   --work-id proj-001 \
   --out agent/results/validation_proj-001.json
 
 # Review the validation result, then plan
-cc-collab plan \
+ccx-collab plan \
   --task agent/tasks/my-feature.task.json \
   --work-id proj-001 \
   --out agent/results/plan_proj-001.json
@@ -211,7 +211,7 @@ cc-collab plan \
 
 ```bash
 # Check what the pipeline sees so far
-cc-collab status --work-id proj-001
+ccx-collab status --work-id proj-001
 ```
 
 Output:
@@ -236,7 +236,7 @@ Output:
 Once you are satisfied with the plan, run the full pipeline. Resume detects the completed stages and picks up from split:
 
 ```bash
-cc-collab run \
+ccx-collab run \
   --task agent/tasks/my-feature.task.json \
   --work-id proj-001 \
   --resume
@@ -251,7 +251,7 @@ Validate and plan are skipped; split through retrospect run normally.
 The `status` command gives you a quick overview of which stages are complete for a given work ID.
 
 ```bash
-cc-collab status --work-id proj-001
+ccx-collab status --work-id proj-001
 ```
 
 ```
@@ -276,7 +276,7 @@ The **Status** column shows `done` (file exists and is parseable) or `missing` (
 If your results are stored somewhere other than `agent/results/`:
 
 ```bash
-cc-collab status --work-id proj-001 --results-dir output/my-results
+ccx-collab status --work-id proj-001 --results-dir output/my-results
 ```
 
 ---
@@ -290,7 +290,7 @@ Sometimes you want to start over completely. There are several ways to do this.
 Simply omit `--resume`. The pipeline runs all stages from scratch regardless of existing result files:
 
 ```bash
-cc-collab run --task agent/tasks/my-feature.task.json --work-id proj-001
+ccx-collab run --task agent/tasks/my-feature.task.json --work-id proj-001
 ```
 
 Existing result files will be overwritten as each stage completes.
@@ -303,7 +303,7 @@ Remove the result file for the stage you want to re-run. Resume will detect the 
 # Remove the plan result to force re-plan and everything after it
 rm agent/results/plan_proj-001.json
 
-cc-collab run --task agent/tasks/my-feature.task.json --work-id proj-001 --resume
+ccx-collab run --task agent/tasks/my-feature.task.json --work-id proj-001 --resume
 ```
 
 ### Option C: Use cleanup
@@ -312,10 +312,10 @@ The `cleanup` command removes old result files based on retention period:
 
 ```bash
 # Preview what would be deleted
-cc-collab cleanup --dry-run --retention-days 0
+ccx-collab cleanup --dry-run --retention-days 0
 
 # Delete all result files (retention 0 days)
-cc-collab cleanup --retention-days 0
+ccx-collab cleanup --retention-days 0
 ```
 
 ---
@@ -324,7 +324,7 @@ cc-collab cleanup --retention-days 0
 
 ### Always use a consistent --work-id
 
-The work ID is the key that links result files across stages. If you omit `--work-id`, cc-collab auto-generates one from the SHA-256 hash of the task file content. This means:
+The work ID is the key that links result files across stages. If you omit `--work-id`, ccx-collab auto-generates one from the SHA-256 hash of the task file content. This means:
 
 - Changing the task file content changes the work ID
 - You lose the ability to resume from previous results
@@ -333,7 +333,7 @@ The work ID is the key that links result files across stages. If you omit `--wor
 For any serious pipeline run, always specify `--work-id` explicitly:
 
 ```bash
-cc-collab run --task my-task.json --work-id FEAT-042
+ccx-collab run --task my-task.json --work-id FEAT-042
 ```
 
 ### Result files are your checkpoints
@@ -346,13 +346,13 @@ Test your resume flow without making real CLI calls:
 
 ```bash
 # Initial simulated run
-cc-collab --simulate run --task my-task.json --work-id test-001
+ccx-collab --simulate run --task my-task.json --work-id test-001
 
 # Check status
-cc-collab status --work-id test-001
+ccx-collab status --work-id test-001
 
 # Resume (still simulated)
-cc-collab --simulate run --task my-task.json --work-id test-001 --resume
+ccx-collab --simulate run --task my-task.json --work-id test-001 --resume
 ```
 
 ### Retrospect always runs
@@ -364,7 +364,7 @@ The retrospect stage is not independently skippable. It runs after every success
 Add `-v` to see exactly which files the resume logic finds and which stages it decides to skip:
 
 ```bash
-cc-collab -v run --task my-task.json --work-id proj-001 --resume
+ccx-collab -v run --task my-task.json --work-id proj-001 --resume
 ```
 
 This outputs DEBUG-level logs showing:
@@ -403,7 +403,7 @@ cat agent/results/validation_proj-001.json | python3 -m json.tool | grep status
 rm agent/results/plan_proj-001.json
 
 # Option 2: Force re-run
-cc-collab run --task my-task.json --work-id proj-001 --resume --force-stage plan
+ccx-collab run --task my-task.json --work-id proj-001 --resume --force-stage plan
 ```
 
 ### --force-stage has no effect
@@ -416,10 +416,10 @@ cc-collab run --task my-task.json --work-id proj-001 --resume --force-stage plan
 
 ```bash
 # Correct
-cc-collab run --task my-task.json --work-id proj-001 --resume --force-stage verify
+ccx-collab run --task my-task.json --work-id proj-001 --resume --force-stage verify
 
 # Incorrect (--force-stage is ignored because --resume is missing)
-cc-collab run --task my-task.json --work-id proj-001 --force-stage verify
+ccx-collab run --task my-task.json --work-id proj-001 --force-stage verify
 ```
 
 ### Wrong work ID causes resume to miss result files
@@ -445,7 +445,7 @@ ls agent/results/*.json
 **Fix:** Either delete the old file and re-run, or ensure the output path matches the pattern the pipeline expects:
 
 ```bash
-# These must match what 'cc-collab run' produces:
+# These must match what 'ccx-collab run' produces:
 agent/results/validation_{work_id}.json
 agent/results/plan_{work_id}.json
 agent/results/dispatch_{work_id}.json

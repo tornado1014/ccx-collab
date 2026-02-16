@@ -1,6 +1,6 @@
 # Example Task Gallery
 
-Example task definitions for the cc-collab pipeline. Use these as templates when creating your own tasks.
+Example task definitions for the ccx-collab pipeline. Use these as templates when creating your own tasks.
 
 ## Available Examples
 
@@ -20,7 +20,7 @@ Example task definitions for the cc-collab pipeline. Use these as templates when
 4. Add subtasks with appropriate roles:
    - `architect` -- planning, documentation, design (uses Claude Code)
    - `builder` -- implementation, coding (uses Codex CLI)
-5. Run validation: `cc-collab validate --task your-task.json`
+5. Run validation: `ccx-collab validate --task your-task.json`
 
 ## Task Schema
 

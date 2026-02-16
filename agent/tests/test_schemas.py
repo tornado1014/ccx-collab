@@ -632,8 +632,8 @@ class TestSchemaVersionManagement:
     def test_dollar_id_uri_format(self, schema_entry):
         name, schema = schema_entry
         dollar_id = schema.get("$id", "")
-        assert dollar_id.startswith("https://cc-collab.dev/schemas/"), (
-            f"{name}: $id should start with https://cc-collab.dev/schemas/"
+        assert dollar_id.startswith("https://ccx-collab.dev/schemas/"), (
+            f"{name}: $id should start with https://ccx-collab.dev/schemas/"
         )
 
     def test_all_schemas_have_dollar_schema(self, schema_entry):

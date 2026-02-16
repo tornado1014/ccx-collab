@@ -3,7 +3,7 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cc-collab"
+name = "ccx-collab"
 version = "0.3.0"
 description = "CLI tool for Claude Code + Codex CLI collaboration pipeline"
 requires-python = ">=3.9"
@@ -50,11 +50,11 @@ Repository = "https://github.com/user/Claude_Codex_Collaboration"
 Issues = "https://github.com/user/Claude_Codex_Collaboration/issues"
 
 [project.scripts]
-cc-collab = "cc_collab.cli:main"
+ccx-collab = "ccx_collab.cli:main"
 
 [tool.pytest.ini_options]
 markers = ["windows: Windows-specific tests (deselect with '-m not windows')"]
 asyncio_mode = "auto"
 
 [tool.setuptools.packages.find]
-include = ["cc_collab*"]
+include = ["ccx_collab*"]

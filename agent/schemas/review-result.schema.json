@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://cc-collab.dev/schemas/review-result/v1.0.0",
+  "$id": "https://ccx-collab.dev/schemas/review-result/v1.0.0",
   "type": "object",
   "required": ["claude_review", "codex_review", "action_required", "go_no_go"],
   "properties": {

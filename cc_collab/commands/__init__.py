@@ -1,1 +1,0 @@
-"""cc-collab CLI commands."""

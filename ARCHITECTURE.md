@@ -1,6 +1,6 @@
 # Architecture
 
-Technical architecture documentation for the cc-collab pipeline system.
+Technical architecture documentation for the ccx-collab pipeline system.
 
 ## Table of Contents
 
@@ -15,7 +15,7 @@ Technical architecture documentation for the cc-collab pipeline system.
 
 ## System Overview
 
-cc-collab orchestrates Claude Code CLI and Codex CLI to perform automated
+ccx-collab orchestrates Claude Code CLI and Codex CLI to perform automated
 development cycles. A task definition (JSON) enters the system and flows
 through a 7-stage pipeline where an **architect** (Claude Code) handles
 planning and review while a **builder** (Codex CLI) handles implementation.
@@ -33,8 +33,8 @@ A final **retrospect** step generates lessons learned after the review gate.
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                       cc-collab CLI                          │
-│  Entry point: cc_collab/cli.py                               │
+│                       ccx-collab CLI                          │
+│  Entry point: ccx_collab/cli.py                               │
 │  Framework:   Click + Rich                                   │
 │  Commands:    13 subcommands (8 stages + 5 tools)            │
 ├──────────────────────────────────────────────────────────────┤
@@ -59,13 +59,13 @@ A final **retrospect** step generates lessons learned after the review gate.
 | Module | Lines | Responsibility |
 |--------|------:|----------------|
 | `agent/scripts/orchestrate.py` | 1,476 | Core engine: CLI dispatch, schema validation, stage execution, rate limiting |
-| `cc_collab/cli.py` | 82 | Click group, global options (verbose, simulate), command registration |
-| `cc_collab/bridge.py` | 171 | Namespace adapter between Click and orchestrate action functions |
-| `cc_collab/config.py` | 177 | 4-layer config loading, project root detection, platform detection |
-| `cc_collab/output.py` | 63 | Rich console helpers (headers, stage results, errors, JSON output) |
-| `cc_collab/commands/stages.py` | 180 | 8 Click commands for individual pipeline stages |
-| `cc_collab/commands/pipeline.py` | 349 | `run` (full pipeline) and `status` (progress dashboard) commands |
-| `cc_collab/commands/tools.py` | 252 | `health`, `cleanup`, and `init` utility commands |
+| `ccx_collab/cli.py` | 82 | Click group, global options (verbose, simulate), command registration |
+| `ccx_collab/bridge.py` | 171 | Namespace adapter between Click and orchestrate action functions |
+| `ccx_collab/config.py` | 177 | 4-layer config loading, project root detection, platform detection |
+| `ccx_collab/output.py` | 63 | Rich console helpers (headers, stage results, errors, JSON output) |
+| `ccx_collab/commands/stages.py` | 180 | 8 Click commands for individual pipeline stages |
+| `ccx_collab/commands/pipeline.py` | 349 | `run` (full pipeline) and `status` (progress dashboard) commands |
+| `ccx_collab/commands/tools.py` | 252 | `health`, `cleanup`, and `init` utility commands |
 
 ## Bridge Pattern
 
@@ -152,10 +152,10 @@ downstream stages, even if their result files exist.
 
 ```bash
 # Resume from where it left off
-cc-collab run --task task.json --work-id abc123 --resume
+ccx-collab run --task task.json --work-id abc123 --resume
 
 # Force re-run from verify stage onward
-cc-collab run --task task.json --work-id abc123 --resume --force-stage verify
+ccx-collab run --task task.json --work-id abc123 --resume --force-stage verify
 ```
 
 ### Rate Limiting
@@ -178,10 +178,10 @@ CLI flags  >  project config  >  user config  >  built-in defaults
 
 | Layer | Source | Example |
 |-------|--------|---------|
-| 1. CLI flags | `--verbose`, `--simulate` | `cc-collab -v run --task ...` |
-| 2. Project config | `.cc-collab.yaml` in project root | `simulate: true` |
-| 3. User config | `~/.cc-collab/config.yaml` | `retention_days: 14` |
-| 4. Built-in defaults | `CC_COLLAB_DEFAULTS` in `config.py` | `verbose: false` |
+| 1. CLI flags | `--verbose`, `--simulate` | `ccx-collab -v run --task ...` |
+| 2. Project config | `.ccx-collab.yaml` in project root | `simulate: true` |
+| 3. User config | `~/.ccx-collab/config.yaml` | `retention_days: 14` |
+| 4. Built-in defaults | `CCX_COLLAB_DEFAULTS` in `config.py` | `verbose: false` |
 
 ### Flag Detection
 
@@ -197,7 +197,7 @@ CLI overrides dictionary:
 ### Built-in Defaults
 
 ```python
-CC_COLLAB_DEFAULTS = {
+CCX_COLLAB_DEFAULTS = {
     "results_dir": "agent/results",
     "retention_days": 30,
     "simulate": False,
@@ -265,7 +265,7 @@ The project maintains 435+ tests across two test suites:
 | Suite | Location | Count | Scope |
 |-------|----------|------:|-------|
 | Engine tests | `agent/tests/` | ~400 | orchestrate.py, schemas, wrappers, cleanup |
-| CLI tests | `tests/test_cc_collab/` | ~35 | bridge, Click commands, output formatting |
+| CLI tests | `tests/test_ccx_collab/` | ~35 | bridge, Click commands, output formatting |
 
 ### Test Categories
 
@@ -280,13 +280,13 @@ without spawning a subprocess:
 
 ```python
 from click.testing import CliRunner
-from cc_collab.cli import cli
+from ccx_collab.cli import cli
 
 def test_version_flag():
     runner = CliRunner()
     result = runner.invoke(cli, ["--version"])
     assert result.exit_code == 0
-    assert "cc-collab" in result.output
+    assert "ccx-collab" in result.output
 ```
 
 **Schema validation tests** (`test_schemas.py`) -- Verify that all JSON
@@ -300,7 +300,7 @@ deselected on other platforms with `-m "not windows"`.
 ### Simulation Mode
 
 Tests and CI runs use simulation mode (`SIMULATE_AGENTS=1` or
-`cc-collab --simulate`) to avoid making real API calls to Claude Code or
+`ccx-collab --simulate`) to avoid making real API calls to Claude Code or
 Codex CLI. In simulation mode, wrapper scripts return synthetic responses
 that conform to the expected schemas.
 
@@ -308,10 +308,10 @@ that conform to the expected schemas.
 
 ### PyPI Package
 
-cc-collab is distributed as a standard Python package:
+ccx-collab is distributed as a standard Python package:
 
 ```bash
-pip install cc-collab
+pip install ccx-collab
 ```
 
 The package is built with setuptools and published via GitHub Actions:
@@ -325,7 +325,7 @@ The entry point is declared in `pyproject.toml`:
 
 ```toml
 [project.scripts]
-cc-collab = "cc_collab.cli:main"
+ccx-collab = "ccx_collab.cli:main"
 ```
 
 ### Docker
@@ -334,13 +334,13 @@ A container image based on `python:3.12-slim` is provided:
 
 ```bash
 # Build
-docker build -t cc-collab .
+docker build -t ccx-collab .
 
 # Run (simulation mode by default)
-docker run --rm cc-collab run --task /app/agent/tasks/example.task.json
+docker run --rm ccx-collab run --task /app/agent/tasks/example.task.json
 
 # Docker Compose
-docker compose run cc-collab --help
+docker compose run ccx-collab --help
 ```
 
 The Docker image sets `SIMULATE_AGENTS=1` by default. Override at runtime to
@@ -349,7 +349,7 @@ enable real CLI calls:
 ```bash
 docker run --rm -e SIMULATE_AGENTS=0 \
   -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
-  cc-collab run --task /app/agent/tasks/example.task.json
+  ccx-collab run --task /app/agent/tasks/example.task.json
 ```
 
 ### GitHub Actions CI/CD

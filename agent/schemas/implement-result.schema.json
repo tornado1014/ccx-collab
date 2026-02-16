@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://cc-collab.dev/schemas/implement-result/v1.0.0",
+  "$id": "https://ccx-collab.dev/schemas/implement-result/v1.0.0",
   "type": "object",
   "required": ["status", "files_changed", "commands_executed", "failed_tests", "artifacts"],
   "properties": {

@@ -1,5 +1,5 @@
 services:
-  cc-collab:
+  ccx-collab:
     build:
       context: .
       dockerfile: Dockerfile
