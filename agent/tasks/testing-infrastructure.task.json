@@ -1,0 +1,91 @@
+{
+  "task_id": "testing-infrastructure",
+  "title": "Set Up Testing Infrastructure",
+  "scope": "Configure pytest, add fixtures, create test utilities, and establish coverage targets",
+  "acceptance_criteria": [
+    {
+      "id": "AC-S00-1",
+      "description": "pytest runs successfully and discovers all tests",
+      "verification": "pytest --collect-only --quiet",
+      "type": "automated"
+    },
+    {
+      "id": "AC-S00-2",
+      "description": "Coverage report is generated and meets minimum threshold",
+      "verification": "pytest --cov=src --cov-fail-under=80 --cov-report=term-missing",
+      "type": "automated"
+    }
+  ],
+  "platform": ["both"],
+  "risk_level": "low",
+  "priority": "high",
+  "subtasks": [
+    {
+      "subtask_id": "testing-infrastructure-S01",
+      "title": "Configure Test Framework",
+      "role": "builder",
+      "platform": ["both"],
+      "estimated_minutes": 45,
+      "files_affected": [
+        "pyproject.toml",
+        "pytest.ini",
+        "conftest.py",
+        ".coveragerc"
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-S01-1",
+          "description": "pytest configuration exists with correct settings",
+          "verification": "python3 -c \"import configparser, pathlib; assert pathlib.Path('pytest.ini').exists() or 'pytest' in pathlib.Path('pyproject.toml').read_text(), 'No pytest config found'\"",
+          "type": "automated"
+        },
+        {
+          "id": "AC-S01-2",
+          "description": "Coverage configuration sets minimum threshold to 80%",
+          "verification": "python3 -c \"import pathlib; config = pathlib.Path('pyproject.toml').read_text(); assert 'fail_under' in config or pathlib.Path('.coveragerc').exists(), 'No coverage config found'\"",
+          "type": "automated"
+        },
+        {
+          "id": "AC-S01-3",
+          "description": "Root conftest.py is importable and contains shared fixtures",
+          "verification": "python3 -c \"import ast, pathlib; tree = ast.parse(pathlib.Path('conftest.py').read_text()); fixtures = [n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]; assert len(fixtures) >= 1, 'conftest.py must define at least one fixture'\"",
+          "type": "automated"
+        }
+      ]
+    },
+    {
+      "subtask_id": "testing-infrastructure-S02",
+      "title": "Create Test Utilities and Fixtures",
+      "role": "builder",
+      "platform": ["both"],
+      "estimated_minutes": 60,
+      "depends_on": ["testing-infrastructure-S01"],
+      "files_affected": [
+        "tests/__init__.py",
+        "tests/conftest.py",
+        "tests/helpers.py",
+        "tests/factories.py"
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-S02-1",
+          "description": "Test helper utilities are importable",
+          "verification": "python3 -c \"from tests.helpers import create_temp_dir, random_string\"",
+          "type": "automated"
+        },
+        {
+          "id": "AC-S02-2",
+          "description": "Test factories generate valid test data",
+          "verification": "python3 -c \"from tests.factories import UserFactory; user = UserFactory.build(); assert user.name and user.email\"",
+          "type": "automated"
+        },
+        {
+          "id": "AC-S02-3",
+          "description": "Shared fixtures are available in test sessions",
+          "verification": "pytest --fixtures --quiet | grep -q 'tmp_database\\|test_client'",
+          "type": "automated"
+        }
+      ]
+    }
+  ]
+}

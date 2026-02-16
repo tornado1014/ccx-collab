@@ -1,0 +1,5 @@
+# cc-collab minimal configuration
+# Place as .cc-collab.yaml in your project root
+
+simulate: false
+verbose: false

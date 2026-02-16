@@ -645,12 +645,12 @@ def build_chunks_from_subtasks(task: Dict[str, Any], plan_data: Dict[str, Any]) 
 def normalize_acceptance_criteria(raw: List[Any], subtask_id: str) -> List[Dict[str, Any]]:
     """Convert mixed string/object acceptance criteria into machine-readable format."""
     result: List[Dict[str, Any]] = []
-    for index, item in enumerate(raw, start=1):
-        if isinstance(item, dict) and "id" in item and "verification" in item:
+    for index, item in enumerate(raw):
+        if isinstance(item, dict):
             result.append({
-                "id": item["id"],
+                "id": item.get("id", f"AC-{subtask_id}-{index}"),
                 "description": item.get("description", ""),
-                "verify_command": item.get("verification", item.get("verify_command", "echo 'manual check required'")),
+                "verify_command": item.get("verify_command", item.get("verification", "echo 'manual check required'")),
                 "verify_pattern": item.get("verify_pattern", ""),
                 "category": item.get("category", item.get("type", "functional")),
             })
@@ -659,7 +659,7 @@ def normalize_acceptance_criteria(raw: List[Any], subtask_id: str) -> List[Dict[
             result.append({
                 "id": ac_id,
                 "description": item,
-                "verify_command": f"echo 'TODO: implement verification for: {item}'",
+                "verify_command": f"echo 'FAIL: no verification command defined for: {item}' && exit 1",
                 "verify_pattern": "",
                 "category": "functional",
             })

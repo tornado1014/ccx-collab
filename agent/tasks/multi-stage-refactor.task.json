@@ -1,0 +1,117 @@
+{
+  "task_id": "refactor-database-layer",
+  "title": "Refactor Database Layer to Repository Pattern",
+  "scope": "Migrate direct database queries to repository pattern for better testability and separation of concerns",
+  "acceptance_criteria": [
+    {
+      "id": "AC-S00-1",
+      "description": "All repository interfaces are defined with type annotations",
+      "verification": "python3 -c \"import ast, pathlib; tree = ast.parse(pathlib.Path('src/repositories/base.py').read_text()); classes = [n.name for n in ast.walk(tree) if isinstance(n, ast.ClassDef)]; assert 'BaseRepository' in classes, f'BaseRepository not found in {classes}'\"",
+      "type": "automated"
+    },
+    {
+      "id": "AC-S00-2",
+      "description": "No direct SQL queries remain in the service layer",
+      "verification": "python3 -c \"import pathlib; services = pathlib.Path('src/services').glob('*.py'); matches = [f for f in services if 'execute(' in f.read_text() or 'cursor' in f.read_text()]; assert not matches, f'Direct DB access found in: {matches}'\"",
+      "type": "automated"
+    }
+  ],
+  "platform": ["both"],
+  "risk_level": "high",
+  "priority": "high",
+  "subtasks": [
+    {
+      "subtask_id": "refactor-database-layer-S01",
+      "title": "Define Repository Interfaces",
+      "role": "architect",
+      "platform": ["both"],
+      "estimated_minutes": 45,
+      "files_affected": [
+        "src/repositories/__init__.py",
+        "src/repositories/base.py",
+        "src/repositories/interfaces.py",
+        "docs/repository-pattern.md"
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-S01-1",
+          "description": "Base repository abstract class defines CRUD method signatures",
+          "verification": "python3 -c \"import ast, pathlib; tree = ast.parse(pathlib.Path('src/repositories/base.py').read_text()); methods = [n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]; required = ['get', 'list', 'create', 'update', 'delete']; missing = [m for m in required if m not in methods]; assert not missing, f'Missing methods: {missing}'\"",
+          "type": "automated"
+        },
+        {
+          "id": "AC-S01-2",
+          "description": "Repository interfaces module is importable",
+          "verification": "python3 -c \"from src.repositories.interfaces import UserRepository, OrderRepository\"",
+          "type": "automated"
+        },
+        {
+          "id": "AC-S01-3",
+          "description": "Design document explains migration strategy",
+          "verification": "test -s docs/repository-pattern.md",
+          "type": "automated"
+        }
+      ]
+    },
+    {
+      "subtask_id": "refactor-database-layer-S02",
+      "title": "Implement Repository Classes",
+      "role": "builder",
+      "platform": ["both"],
+      "estimated_minutes": 90,
+      "depends_on": ["refactor-database-layer-S01"],
+      "files_affected": [
+        "src/repositories/user_repository.py",
+        "src/repositories/order_repository.py",
+        "tests/test_repositories.py"
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-S02-1",
+          "description": "Concrete repository classes implement all interface methods",
+          "verification": "python3 -c \"from src.repositories.user_repository import SQLUserRepository; repo = SQLUserRepository.__abstractmethods__; assert not repo, f'Unimplemented methods: {repo}'\"",
+          "type": "automated"
+        },
+        {
+          "id": "AC-S02-2",
+          "description": "Repository unit tests pass with in-memory database",
+          "verification": "pytest tests/test_repositories.py -v",
+          "type": "automated"
+        }
+      ]
+    },
+    {
+      "subtask_id": "refactor-database-layer-S03",
+      "title": "Update Service Layer",
+      "role": "builder",
+      "platform": ["both"],
+      "estimated_minutes": 60,
+      "depends_on": ["refactor-database-layer-S02"],
+      "files_affected": [
+        "src/services/user_service.py",
+        "src/services/order_service.py",
+        "tests/test_services.py"
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-S03-1",
+          "description": "Services accept repository instances via constructor injection",
+          "verification": "python3 -c \"import ast, pathlib; tree = ast.parse(pathlib.Path('src/services/user_service.py').read_text()); init_methods = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == '__init__']; args = [a.arg for a in init_methods[0].args.args]; assert 'repository' in args or 'repo' in args, f'No repository injection found in __init__ args: {args}'\"",
+          "type": "automated"
+        },
+        {
+          "id": "AC-S03-2",
+          "description": "Service tests use mock repositories",
+          "verification": "pytest tests/test_services.py -v",
+          "type": "automated"
+        },
+        {
+          "id": "AC-S03-3",
+          "description": "Full integration test suite passes",
+          "verification": "pytest tests/ -v --tb=short",
+          "type": "automated"
+        }
+      ]
+    }
+  ]
+}

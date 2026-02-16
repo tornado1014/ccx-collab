@@ -636,6 +636,54 @@ class TestOutputModule:
         print_stage_result("verify", 0)
 
 
+class TestInitTemplates:
+    @pytest.fixture
+    def runner(self):
+        return CliRunner()
+
+    def test_init_simple_template(self, runner, tmp_path):
+        out = str(tmp_path / "simple.task.json")
+        result = runner.invoke(cli, ["init", "--task-id", "t1", "--title", "T1", "--template", "simple", "-o", out])
+        assert result.exit_code == 0
+        data = json.loads(Path(out).read_text())
+        assert data["risk_level"] == "low"
+        assert len(data["subtasks"]) == 1
+        assert data["subtasks"][0]["role"] == "builder"
+
+    def test_init_standard_template(self, runner, tmp_path):
+        out = str(tmp_path / "standard.task.json")
+        result = runner.invoke(cli, ["init", "--task-id", "t2", "--title", "T2", "--template", "standard", "-o", out])
+        assert result.exit_code == 0
+        data = json.loads(Path(out).read_text())
+        assert len(data["subtasks"]) == 1
+
+    def test_init_complex_template(self, runner, tmp_path):
+        out = str(tmp_path / "complex.task.json")
+        result = runner.invoke(cli, ["init", "--task-id", "t3", "--title", "T3", "--template", "complex", "-o", out])
+        assert result.exit_code == 0
+        data = json.loads(Path(out).read_text())
+        assert data["risk_level"] == "high"
+        assert len(data["subtasks"]) == 3
+        assert data["subtasks"][0]["role"] == "architect"
+        assert data["subtasks"][1]["role"] == "builder"
+
+    def test_init_default_template_is_standard(self, runner, tmp_path):
+        out = str(tmp_path / "default.task.json")
+        result = runner.invoke(cli, ["init", "--task-id", "t4", "--title", "T4", "-o", out])
+        assert result.exit_code == 0
+        data = json.loads(Path(out).read_text())
+        # Default should match standard (1 subtask)
+        assert len(data["subtasks"]) == 1
+
+    def test_init_complex_has_exit1_verification(self, runner, tmp_path):
+        out = str(tmp_path / "complex2.task.json")
+        result = runner.invoke(cli, ["init", "--task-id", "t5", "--title", "T5", "--template", "complex", "-o", out])
+        assert result.exit_code == 0
+        data = json.loads(Path(out).read_text())
+        for ac in data["acceptance_criteria"]:
+            assert "exit 1" in ac["verification"]
+
+
 class TestCcCollabConfigFile:
     """Tests for YAML config file loading and precedence."""
 

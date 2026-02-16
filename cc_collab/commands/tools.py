@@ -196,18 +196,133 @@ def cleanup(ctx, results_dir, retention_days, dry_run):
         print_success(f"Files deleted: {deleted_count}, Space freed: {freed_display}")
 
 
-@click.command()
-@click.option("--task-id", prompt="Task ID", help="Unique task identifier")
-@click.option("--title", prompt="Task title", help="Human-readable title")
-@click.option("--output", "-o", default="", help="Output file path (default: agent/tasks/{task_id}.task.json)")
-@click.pass_context
-def init(ctx, task_id, title, output):
-    """Create a new task template (interactive)."""
-    from cc_collab.output import console, print_success, print_error
+def _build_task_template(task_id: str, title: str, template: str = "standard") -> dict:
+    """Build a task template dict based on the chosen complexity level.
 
-    logger.debug("Init task template: task_id=%s, title=%s", task_id, title)
+    Args:
+        task_id: Unique task identifier.
+        title: Human-readable title.
+        template: One of "simple", "standard", "complex".
 
-    template = {
+    Returns:
+        A dict representing the task template.
+    """
+    if template == "simple":
+        return {
+            "task_id": task_id,
+            "title": title,
+            "scope": f"Implementation scope for {title}",
+            "risk_level": "low",
+            "priority": "medium",
+            "acceptance_criteria": [
+                {
+                    "id": "AC-S00-1",
+                    "description": "PLACEHOLDER: Define acceptance criteria",
+                    "verification": "echo 'FAIL: acceptance criteria not yet defined' && exit 1",
+                    "type": "automated",
+                }
+            ],
+            "subtasks": [
+                {
+                    "subtask_id": f"{task_id}-S01",
+                    "title": "Implementation",
+                    "role": "builder",
+                    "acceptance_criteria": [
+                        {
+                            "id": "AC-S01-1",
+                            "description": "PLACEHOLDER: Define subtask criteria",
+                            "verification": "echo 'FAIL: subtask criteria not yet defined' && exit 1",
+                            "type": "automated",
+                        }
+                    ],
+                }
+            ],
+        }
+
+    if template == "complex":
+        return {
+            "task_id": task_id,
+            "title": title,
+            "scope": f"Implementation scope for {title}",
+            "risk_level": "high",
+            "priority": "high",
+            "acceptance_criteria": [
+                {
+                    "id": "AC-S00-1",
+                    "description": "PLACEHOLDER: Define overall acceptance criteria",
+                    "verification": "echo 'FAIL: acceptance criteria not yet defined' && exit 1",
+                    "type": "automated",
+                },
+                {
+                    "id": "AC-S00-2",
+                    "description": "PLACEHOLDER: All tests pass",
+                    "verification": "echo 'FAIL: test verification not yet defined' && exit 1",
+                    "type": "automated",
+                },
+            ],
+            "subtasks": [
+                {
+                    "subtask_id": f"{task_id}-S01",
+                    "title": "Architecture and design",
+                    "role": "architect",
+                    "acceptance_criteria": [
+                        {
+                            "id": "AC-S01-1",
+                            "description": "PLACEHOLDER: Design document created",
+                            "verification": "echo 'FAIL: criteria not yet defined' && exit 1",
+                            "type": "automated",
+                        },
+                        {
+                            "id": "AC-S01-2",
+                            "description": "PLACEHOLDER: Interfaces defined",
+                            "verification": "echo 'FAIL: criteria not yet defined' && exit 1",
+                            "type": "automated",
+                        },
+                    ],
+                },
+                {
+                    "subtask_id": f"{task_id}-S02",
+                    "title": "Core implementation",
+                    "role": "builder",
+                    "acceptance_criteria": [
+                        {
+                            "id": "AC-S02-1",
+                            "description": "PLACEHOLDER: Core logic implemented",
+                            "verification": "echo 'FAIL: criteria not yet defined' && exit 1",
+                            "type": "automated",
+                        },
+                        {
+                            "id": "AC-S02-2",
+                            "description": "PLACEHOLDER: Unit tests pass",
+                            "verification": "echo 'FAIL: criteria not yet defined' && exit 1",
+                            "type": "automated",
+                        },
+                    ],
+                },
+                {
+                    "subtask_id": f"{task_id}-S03",
+                    "title": "Integration and testing",
+                    "role": "builder",
+                    "acceptance_criteria": [
+                        {
+                            "id": "AC-S03-1",
+                            "description": "PLACEHOLDER: Integration tests pass",
+                            "verification": "echo 'FAIL: criteria not yet defined' && exit 1",
+                            "type": "automated",
+                        },
+                        {
+                            "id": "AC-S03-2",
+                            "description": "PLACEHOLDER: Documentation updated",
+                            "verification": "echo 'FAIL: criteria not yet defined' && exit 1",
+                            "type": "automated",
+                        },
+                    ],
+                },
+            ],
+        }
+
+    # "standard" (default) -- matches the original template
+    return {
         "task_id": task_id,
         "title": title,
         "scope": f"Implementation scope for {title}",
@@ -238,14 +353,29 @@ def init(ctx, task_id, title, output):
         ],
     }
 
+
+@click.command()
+@click.option("--task-id", prompt="Task ID", help="Unique task identifier")
+@click.option("--title", prompt="Task title", help="Human-readable title")
+@click.option("--template", "-t", type=click.Choice(["simple", "standard", "complex"]), default="standard", help="Task template complexity")
+@click.option("--output", "-o", default="", help="Output file path (default: agent/tasks/{task_id}.task.json)")
+@click.pass_context
+def init(ctx, task_id, title, template, output):
+    """Create a new task template (interactive)."""
+    from cc_collab.output import console, print_success, print_error
+
+    logger.debug("Init task template: task_id=%s, title=%s, template=%s", task_id, title, template)
+
+    task_data = _build_task_template(task_id, title, template)
+
     if not output:
         output = f"agent/tasks/{task_id}.task.json"
         logger.debug("Output path defaulted to: %s", output)
 
     out_path = Path(output)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(template, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    out_path.write_text(json.dumps(task_data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     logger.debug("Task template written to %s", out_path)
 
     print_success(f"Task template created: {out_path}")
-    console.print_json(json.dumps(template, indent=2, ensure_ascii=False))
+    console.print_json(json.dumps(task_data, indent=2, ensure_ascii=False))

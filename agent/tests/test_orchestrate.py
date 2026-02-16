@@ -394,7 +394,7 @@ class TestNormalizeAcceptanceCriteria:
         raw = ["Tests pass", "No warnings"]
         result = orchestrate.normalize_acceptance_criteria(raw, "S01")
         assert len(result) == 2
-        assert result[0]["id"] == "AC-S01-1"
+        assert result[0]["id"] == "AC-S01-0"
         assert result[0]["description"] == "Tests pass"
         assert result[0]["category"] == "functional"
 
@@ -421,7 +421,7 @@ class TestNormalizeAcceptanceCriteria:
         ]
         result = orchestrate.normalize_acceptance_criteria(raw, "S02")
         assert len(result) == 2
-        assert result[0]["id"] == "AC-S02-1"
+        assert result[0]["id"] == "AC-S02-0"
         assert result[1]["id"] == "AC-02"
 
 
@@ -2475,3 +2475,65 @@ class TestRetryLogic:
                     result = orchestrate.run_agent_command("codex", "fake-cmd", {"t": 1})
         assert mock_run.call_count == 2
         assert result["attempt"] == 2
+
+
+# ---------------------------------------------------------------------------
+# normalize_acceptance_criteria (fail-fast verification)
+# ---------------------------------------------------------------------------
+
+class TestNormalizeAcceptanceCriteriaFailFast:
+    """Tests for normalize_acceptance_criteria function."""
+
+    def test_string_item_creates_fail_fast_verification(self):
+        """String AC items should generate exit 1 verification commands."""
+        result = orchestrate.normalize_acceptance_criteria(
+            ["Some acceptance criterion"], "S01"
+        )
+        assert len(result) == 1
+        assert "exit 1" in result[0]["verify_command"]
+        assert "FAIL" in result[0]["verify_command"]
+        assert result[0]["id"] == "AC-S01-0"
+
+    def test_string_item_includes_description(self):
+        """String AC items should preserve the original description."""
+        result = orchestrate.normalize_acceptance_criteria(
+            ["Must handle errors"], "S01"
+        )
+        assert result[0]["description"] == "Must handle errors"
+        assert "Must handle errors" in result[0]["verify_command"]
+
+    def test_dict_item_preserves_verify_command(self):
+        """Dict AC items with explicit verify_command should be preserved."""
+        ac = [{
+            "id": "AC-S01-1",
+            "description": "Tests pass",
+            "verify_command": "pytest tests/",
+            "category": "functional"
+        }]
+        result = orchestrate.normalize_acceptance_criteria(ac, "S01")
+        assert result[0]["verify_command"] == "pytest tests/"
+
+    def test_empty_list(self):
+        """Empty AC list should return empty list."""
+        result = orchestrate.normalize_acceptance_criteria([], "S01")
+        assert result == []
+
+    def test_mixed_items(self):
+        """Mixed string and dict items should be handled correctly."""
+        ac = [
+            "String criterion",
+            {"id": "AC-S01-1", "description": "Dict criterion", "verify_command": "echo ok"}
+        ]
+        result = orchestrate.normalize_acceptance_criteria(ac, "S01")
+        assert len(result) == 2
+        assert "exit 1" in result[0]["verify_command"]
+        assert result[1]["verify_command"] == "echo ok"
+
+    def test_multiple_string_items_get_sequential_ids(self):
+        """Multiple string items should get sequential AC IDs."""
+        result = orchestrate.normalize_acceptance_criteria(
+            ["First", "Second", "Third"], "S02"
+        )
+        assert result[0]["id"] == "AC-S02-0"
+        assert result[1]["id"] == "AC-S02-1"
+        assert result[2]["id"] == "AC-S02-2"

@@ -1,0 +1,50 @@
+{
+  "task_id": "add-user-greeting",
+  "title": "Add User Greeting Feature",
+  "scope": "Add a simple greeting function that takes a username and returns a personalized greeting message",
+  "acceptance_criteria": [
+    {
+      "id": "AC-S00-1",
+      "description": "Greeting function returns correct personalized message",
+      "verification": "python3 -c \"from myapp import greet; assert greet('World') == 'Hello, World!'\"",
+      "type": "automated"
+    },
+    {
+      "id": "AC-S00-2",
+      "description": "Unit tests pass for greeting feature",
+      "verification": "pytest tests/test_greet.py",
+      "type": "automated"
+    }
+  ],
+  "platform": ["both"],
+  "risk_level": "low",
+  "priority": "medium",
+  "subtasks": [
+    {
+      "subtask_id": "add-user-greeting-S01",
+      "title": "Implement greeting function and tests",
+      "role": "builder",
+      "platform": ["both"],
+      "estimated_minutes": 30,
+      "files_affected": [
+        "myapp/__init__.py",
+        "myapp/greeting.py",
+        "tests/test_greet.py"
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-S01-1",
+          "description": "greet function exists and is importable",
+          "verification": "python3 -c \"from myapp import greet; print(greet('Test'))\"",
+          "type": "automated"
+        },
+        {
+          "id": "AC-S01-2",
+          "description": "greet function handles empty string input gracefully",
+          "verification": "python3 -c \"from myapp import greet; result = greet(''); assert isinstance(result, str), 'must return a string'\"",
+          "type": "automated"
+        }
+      ]
+    }
+  ]
+}

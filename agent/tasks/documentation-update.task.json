@@ -1,0 +1,82 @@
+{
+  "task_id": "api-documentation",
+  "title": "Create API Documentation",
+  "scope": "Write comprehensive API documentation including usage examples, configuration reference, and troubleshooting guide",
+  "acceptance_criteria": [
+    {
+      "id": "AC-S00-1",
+      "description": "API reference document exists and covers all public endpoints",
+      "verification": "python3 -c \"import pathlib; doc = pathlib.Path('docs/api-reference.md').read_text(); sections = ['## Endpoints', '## Authentication', '## Error Handling']; missing = [s for s in sections if s not in doc]; assert not missing, f'Missing sections: {missing}'\"",
+      "type": "automated"
+    },
+    {
+      "id": "AC-S00-2",
+      "description": "Usage examples document contains runnable code snippets",
+      "verification": "python3 -c \"import pathlib; doc = pathlib.Path('docs/usage-examples.md').read_text(); assert doc.count('```') >= 6, f'Expected at least 3 code blocks, found {doc.count(chr(96)*3) // 2}'\"",
+      "type": "automated"
+    }
+  ],
+  "platform": ["both"],
+  "risk_level": "low",
+  "priority": "medium",
+  "subtasks": [
+    {
+      "subtask_id": "api-documentation-S01",
+      "title": "Write API Reference",
+      "role": "architect",
+      "platform": ["both"],
+      "estimated_minutes": 60,
+      "files_affected": [
+        "docs/api-reference.md",
+        "docs/configuration.md",
+        "docs/troubleshooting.md"
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-S01-1",
+          "description": "API reference covers all public endpoints with request/response schemas",
+          "verification": "test -s docs/api-reference.md && grep -q 'Request' docs/api-reference.md && grep -q 'Response' docs/api-reference.md",
+          "type": "automated"
+        },
+        {
+          "id": "AC-S01-2",
+          "description": "Configuration reference documents all environment variables",
+          "verification": "test -s docs/configuration.md && grep -cq 'env\\|ENV\\|environment' docs/configuration.md",
+          "type": "automated"
+        },
+        {
+          "id": "AC-S01-3",
+          "description": "Troubleshooting guide lists common error scenarios",
+          "verification": "test -s docs/troubleshooting.md && grep -q 'Error\\|error\\|Problem\\|problem' docs/troubleshooting.md",
+          "type": "automated"
+        }
+      ]
+    },
+    {
+      "subtask_id": "api-documentation-S02",
+      "title": "Create Usage Examples",
+      "role": "architect",
+      "platform": ["both"],
+      "estimated_minutes": 45,
+      "depends_on": ["api-documentation-S01"],
+      "files_affected": [
+        "docs/usage-examples.md",
+        "docs/quickstart.md"
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-S02-1",
+          "description": "Usage examples document includes Python and curl examples",
+          "verification": "python3 -c \"import pathlib; doc = pathlib.Path('docs/usage-examples.md').read_text(); assert 'python' in doc.lower() and 'curl' in doc.lower(), 'Must include both Python and curl examples'\"",
+          "type": "automated"
+        },
+        {
+          "id": "AC-S02-2",
+          "description": "Quickstart guide provides a working end-to-end example",
+          "verification": "test -s docs/quickstart.md && grep -q 'install\\|setup\\|getting started' docs/quickstart.md",
+          "type": "automated"
+        }
+      ]
+    }
+  ]
+}
