@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}New Project{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold mb-2">{{ _('what_to_build') }}</h1>
+        <p class="text-muted">{{ _('describe_goal') }}</p>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8"
+         x-data="{ loading: false, goal: '', complexity: 'standard' }">
+        <form @submit.prevent="
+            loading = true;
+            fetch('/api/wizard/start', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ goal, complexity, simulate: false })
+            })
+            .then(r => r.json())
+            .then(d => { window.location.href = d.redirect; })
+            .catch(() => { loading = false; })
+        ">
+            <label class="block text-sm font-medium mb-2">Your Goal</label>
+            <textarea x-model="goal" required rows="4" placeholder="Example: Add user login with email and password..."
+                class="w-full border rounded-lg px-4 py-3 text-lg bg-white dark:bg-gray-700 dark:border-gray-600 mb-6 focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+
+            <label class="block text-sm font-medium mb-2">{{ _('project_size') }}</label>
+            <div class="grid grid-cols-3 gap-3 mb-8">
+                <button type="button" @click="complexity = 'simple'"
+                    :class="complexity === 'simple' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600'"
+                    class="border-2 rounded-lg p-4 text-center transition-colors cursor-pointer">
+                    <div class="text-2xl mb-1">&#9889;</div>
+                    <div class="font-medium">{{ _('quick_fix') }}</div>
+                    <div class="text-xs text-muted">Small change</div>
+                </button>
+                <button type="button" @click="complexity = 'standard'"
+                    :class="complexity === 'standard' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600'"
+                    class="border-2 rounded-lg p-4 text-center transition-colors cursor-pointer">
+                    <div class="text-2xl mb-1">&#128295;</div>
+                    <div class="font-medium">{{ _('feature') }}</div>
+                    <div class="text-xs text-muted">Normal task</div>
+                </button>
+                <button type="button" @click="complexity = 'complex'"
+                    :class="complexity === 'complex' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600'"
+                    class="border-2 rounded-lg p-4 text-center transition-colors cursor-pointer">
+                    <div class="text-2xl mb-1">&#127959;</div>
+                    <div class="font-medium">{{ _('project') }}</div>
+                    <div class="text-xs text-muted">Multi-step</div>
+                </button>
+            </div>
+
+            <button type="submit" :disabled="!goal.trim() || loading"
+                class="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium text-lg transition-colors">
+                <span x-show="!loading">{{ _('create_plan') }}</span>
+                <span x-show="loading">{{ _('creating_plan') }}...</span>
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

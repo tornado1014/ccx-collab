@@ -63,7 +63,7 @@ async def health_api():
         "claude_code": claude_info,
         "codex_cli": codex_info,
         "python_version": platform.python_version(),
-        "ccx_collab_version": "0.4.0",
+        "ccx_collab_version": "0.5.0",
         "platform": platform.system(),
         "architecture": platform.machine(),
         "disk_usage": _disk_usage(results_dir),

@@ -65,11 +65,42 @@ def get_locale_from_request(request) -> str:
     return DEFAULT_LOCALE
 
 
+STAGE_LABELS = {
+    "en": {
+        "validate": "Check Requirements",
+        "plan": "Create Plan",
+        "split": "Divide Tasks",
+        "implement": "Build Code",
+        "merge": "Combine Results",
+        "verify": "Run Tests",
+        "review": "Quality Check",
+        "retrospect": "Learn & Improve",
+    },
+    "ko": {
+        "validate": "요구사항 확인",
+        "plan": "계획 수립",
+        "split": "작업 분할",
+        "implement": "코드 작성",
+        "merge": "결과 통합",
+        "verify": "테스트 실행",
+        "review": "품질 검토",
+        "retrospect": "회고 및 개선",
+    },
+}
+
+
+def get_stage_label(stage: str, locale: str = DEFAULT_LOCALE) -> str:
+    """Get localized label for a pipeline stage."""
+    labels = STAGE_LABELS.get(locale, STAGE_LABELS.get(DEFAULT_LOCALE, {}))
+    return labels.get(stage, stage)
+
+
 def setup_jinja2_i18n(templates) -> None:
     """Add translation function to Jinja2 environment globals."""
     if templates is None:
         return
 
     templates.env.globals["_"] = get_text
+    templates.env.globals["_stage"] = get_stage_label
     templates.env.globals["supported_locales"] = SUPPORTED_LOCALES
     logger.debug("i18n Jinja2 globals registered")

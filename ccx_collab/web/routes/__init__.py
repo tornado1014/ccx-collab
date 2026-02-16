@@ -14,10 +14,12 @@ from ccx_collab.web.routes.results import router as results_router
 from ccx_collab.web.routes.stages import router as stages_router
 from ccx_collab.web.routes.tasks import router as tasks_router
 from ccx_collab.web.routes.webhooks import router as webhooks_router
+from ccx_collab.web.routes.wizard import router as wizard_router
 
 
 def register_routes(app: FastAPI) -> None:
     """Register all route modules on the FastAPI application."""
+    app.include_router(wizard_router)
     app.include_router(dashboard_router)
     app.include_router(pipeline_router)
     app.include_router(tasks_router)

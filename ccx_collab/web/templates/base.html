@@ -21,7 +21,7 @@
     {% block head %}{% endblock %}
 </head>
 <body class="bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 min-h-screen"
-      x-data="{ sidebarOpen: true, settingsOpen: false, mobileMenu: false }"
+      x-data="{ sidebarOpen: true, settingsOpen: false, mobileMenu: false, advancedMode: localStorage.getItem('ccx-advanced') === 'true' }"
       x-init="
         const saved = localStorage.getItem('ccx-collab-theme');
         if (saved === 'dark') document.documentElement.classList.replace('light', 'dark');
@@ -52,11 +52,15 @@
             <!-- Logo -->
             <div class="p-4 border-b border-gray-200 dark:border-gray-700">
                 <a href="/" class="text-xl font-bold text-primary hover:text-blue-700">ccx-collab</a>
-                <p class="text-xs text-muted mt-1">v0.4.0 Dashboard</p>
+                <p class="text-xs text-muted mt-1">v0.5.0 Dashboard</p>
             </div>
 
             <!-- Navigation -->
             <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
+                <a href="/wizard" class="flex items-center gap-2 px-3 py-2.5 mb-3 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    {{ _('new_project') }}
+                </a>
                 <a href="/" class="flex items-center gap-2 px-3 py-2 text-sm rounded-lg {% if request.url.path == '/' %}bg-blue-50 text-primary dark:bg-blue-900/30{% else %}hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/></svg>
                     {{ _('dashboard') }}
@@ -65,13 +69,15 @@
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
                     {{ _('tasks') }}
                 </a>
-                <a href="/stages" class="flex items-center gap-2 px-3 py-2 text-sm rounded-lg {% if '/stages' in request.url.path %}bg-blue-50 text-primary dark:bg-blue-900/30{% else %}hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                    {{ _('stages') }}
-                </a>
                 <a href="/history" class="flex items-center gap-2 px-3 py-2 text-sm rounded-lg {% if '/history' in request.url.path %}bg-blue-50 text-primary dark:bg-blue-900/30{% else %}hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     {{ _('history') }}
+                </a>
+                <template x-if="advancedMode">
+                <div class="space-y-1">
+                <a href="/stages" class="flex items-center gap-2 px-3 py-2 text-sm rounded-lg {% if '/stages' in request.url.path %}bg-blue-50 text-primary dark:bg-blue-900/30{% else %}hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    {{ _('stages') }}
                 </a>
                 <a href="/logs" class="flex items-center gap-2 px-3 py-2 text-sm rounded-lg {% if '/logs' in request.url.path %}bg-blue-50 text-primary dark:bg-blue-900/30{% else %}hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
@@ -81,9 +87,11 @@
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
                     {{ _('results') }}
                 </a>
+                </div>
+                </template>
 
-                <!-- Settings group -->
-                <div class="pt-3 mt-3 border-t border-gray-200 dark:border-gray-700">
+                <!-- Settings group (advanced) -->
+                <div x-show="advancedMode" class="pt-3 mt-3 border-t border-gray-200 dark:border-gray-700">
                     <button @click="settingsOpen = !settingsOpen" class="w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
                         <span class="flex items-center gap-2">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
@@ -113,6 +121,12 @@
 
             <!-- Footer controls -->
             <div class="p-3 border-t border-gray-200 dark:border-gray-700 space-y-2">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs text-muted" x-text="advancedMode ? '{{ _('advanced_mode') }}' : '{{ _('simple_mode') }}'"></span>
+                    <button @click="advancedMode = !advancedMode; localStorage.setItem('ccx-advanced', advancedMode)" class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors" :class="advancedMode ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'">
+                        <span class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform" :class="advancedMode ? 'translate-x-4.5' : 'translate-x-0.5'"></span>
+                    </button>
+                </div>
                 <div class="flex items-center justify-between">
                     <select class="text-xs border rounded px-1.5 py-1 bg-white dark:bg-gray-700 dark:border-gray-600" onchange="location.href='?lang='+this.value">
                         <option value="en" {% if request.query_params.get('lang', 'en') == 'en' %}selected{% endif %}>EN</option>
@@ -135,7 +149,7 @@
             {% block content %}{% endblock %}
 
             <footer class="mt-12 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <p class="text-xs text-muted">ccx-collab v0.4.0</p>
+                <p class="text-xs text-muted">ccx-collab v0.5.0</p>
             </footer>
         </main>
     </div>

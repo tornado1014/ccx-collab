@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Complete!{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <!-- Progress Steps -->
+    <div class="flex items-center justify-center gap-2 mb-8 text-sm">
+        <span class="px-3 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">1. Goal &#10003;</span>
+        <span class="text-gray-300">&rarr;</span>
+        <span class="px-3 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">2. Plan &#10003;</span>
+        <span class="text-gray-300">&rarr;</span>
+        <span class="px-3 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">3. Execute &#10003;</span>
+        <span class="text-gray-300">&rarr;</span>
+        <span class="px-3 py-1 rounded-full bg-blue-600 text-white font-medium">4. {{ _('results') }}</span>
+    </div>
+
+    <div class="text-center mb-8">
+        <div class="text-5xl mb-4">&#127881;</div>
+        <h1 class="text-2xl font-bold mb-2">{{ _('project_complete') }}</h1>
+        <p class="text-muted">Work ID: <code>{{ run.work_id }}</code></p>
+    </div>
+
+    {% if review %}
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-4">Review Summary</h2>
+        {% if review.verdict is defined %}
+        <div class="mb-4">
+            <span class="badge badge-{{ 'completed' if review.verdict == 'passed' else 'failed' }}">
+                {{ review.verdict }}
+            </span>
+        </div>
+        {% endif %}
+        {% if review.summary is defined %}
+        <p class="text-muted mb-4">{{ review.summary }}</p>
+        {% endif %}
+        <details class="mt-4">
+            <summary class="cursor-pointer text-sm text-blue-600">View full review JSON</summary>
+            <pre class="mt-2 text-xs bg-gray-50 dark:bg-gray-700 p-4 rounded-lg overflow-x-auto">{{ review | tojson(indent=2) }}</pre>
+        </details>
+    </div>
+    {% endif %}
+
+    <div class="grid grid-cols-2 gap-4">
+        <a href="/wizard" class="block p-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-center font-medium transition-colors">
+            {{ _('start_new') }}
+        </a>
+        <a href="/history" class="block p-4 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-center font-medium transition-colors">
+            View Details
+        </a>
+    </div>
+</div>
+{% endblock %}

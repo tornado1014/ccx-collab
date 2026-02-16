@@ -8,6 +8,25 @@
     <p class="text-muted">Pipeline overview and quick actions</p>
 </div>
 
+<!-- Welcome Panel -->
+{% if total_runs is none or total_runs == 0 %}
+<div x-data="{ show: localStorage.getItem('ccx-welcome-dismissed') !== 'true' }"
+     x-show="show" x-transition
+     class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-8 mb-8 border border-blue-200 dark:border-blue-800">
+    <div class="flex justify-between items-start mb-4">
+        <div>
+            <h2 class="text-2xl font-bold">{{ _('what_to_build') }}</h2>
+            <p class="text-muted">Your AI-powered development assistant</p>
+        </div>
+        <button @click="show = false; localStorage.setItem('ccx-welcome-dismissed', 'true')" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+    </div>
+    <p class="mb-6">Describe what you want to build, review the AI's plan, and let it execute automatically.</p>
+    <a href="/wizard" class="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-lg">
+        {{ _('start_new') }} &rarr;
+    </a>
+</div>
+{% endif %}
+
 <div class="stats-grid">
     <div class="stat-card">
         <h2 class="text-3xl font-bold">{{ total_runs | default(0) }}</h2>
@@ -89,7 +108,7 @@
 </div>
 
 <div class="quick-actions">
-    <a href="/tasks" class="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">Quick Run</a>
+    <a href="/wizard" class="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">{{ _('new_project') }}</a>
     <a href="/history" class="inline-block px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm">View History</a>
     <a href="/history/charts" class="inline-block px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-sm">Analytics</a>
 </div>

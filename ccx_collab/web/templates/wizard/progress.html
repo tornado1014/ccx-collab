@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Building...{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <!-- Progress Steps -->
+    <div class="flex items-center justify-center gap-2 mb-8 text-sm">
+        <span class="px-3 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">1. Goal &#10003;</span>
+        <span class="text-gray-300">&rarr;</span>
+        <span class="px-3 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">2. Plan &#10003;</span>
+        <span class="text-gray-300">&rarr;</span>
+        <span class="px-3 py-1 rounded-full bg-blue-600 text-white font-medium">3. {{ _('execute') }}</span>
+        <span class="text-gray-300">&rarr;</span>
+        <span class="px-3 py-1 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">4. {{ _('results') }}</span>
+    </div>
+
+    <h1 class="text-2xl font-bold mb-6 text-center">{{ _('building_project') }}</h1>
+
+    <!-- Stage Progress Cards -->
+    <div class="space-y-3 mb-8" hx-ext="sse" sse-connect="/api/pipeline/{{ run.work_id }}/stream">
+        {% for stage_key, label_tuple in stage_labels.items() %}
+        {% set label = label_tuple[0] %}
+        {% set active_text = label_tuple[1] %}
+        {% set status = stage_map.get(stage_key, "pending") %}
+        <div class="flex items-center gap-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm
+                    {% if status == 'completed' %}border-l-4 border-green-500{% elif run.current_stage == stage_key %}border-l-4 border-blue-500{% else %}opacity-50{% endif %}">
+            {% if status == "completed" %}
+            <span class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30 text-green-600">&#10003;</span>
+            {% elif run.current_stage == stage_key %}
+            <span class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 animate-pulse">&#8635;</span>
+            {% else %}
+            <span class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700 text-gray-400">{{ loop.index }}</span>
+            {% endif %}
+            <div>
+                <p class="font-medium">{{ label }}</p>
+                {% if run.current_stage == stage_key and status != "completed" %}
+                <p class="text-sm text-blue-600">{{ active_text }}</p>
+                {% elif status == "completed" %}
+                <p class="text-sm text-green-600">Done</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+
+        <div id="stage-updates" sse-swap="stage_update" hx-swap="none"
+             hx-on::after-settle="setTimeout(() => location.reload(), 500)">
+        </div>
+    </div>
+
+    {% if run.status == "completed" %}
+    <div class="text-center">
+        <a href="/wizard/{{ run.id }}/done" class="inline-block px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-lg">
+            {{ _('view_results') }} &rarr;
+        </a>
+    </div>
+    {% elif run.status == "failed" %}
+    <div class="bg-red-50 dark:bg-red-900/20 rounded-xl p-6 text-center">
+        <p class="font-medium text-red-800 dark:text-red-200 mb-2">Something went wrong</p>
+        <p class="text-sm text-muted mb-4">The pipeline failed at stage: {{ run.current_stage }}</p>
+        <a href="/wizard" class="text-blue-600 hover:underline">Try again</a>
+    </div>
+    {% else %}
+    <p class="text-center text-muted">
+        <span class="animate-pulse">&#9679;</span> Pipeline is running... this page auto-refreshes.
+    </p>
+    <script>
+        if (!document.querySelector('[sse-connect]')) {
+            setTimeout(() => location.reload(), 5000);
+        }
+    </script>
+    {% endif %}
+</div>
+{% endblock %}

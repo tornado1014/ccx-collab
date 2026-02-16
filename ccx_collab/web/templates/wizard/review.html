@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Review Plan{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto" x-data="{ approving: false }">
+    <!-- Progress Steps -->
+    <div class="flex items-center justify-center gap-2 mb-8 text-sm">
+        <span class="px-3 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">1. Goal &#10003;</span>
+        <span class="text-gray-300">&rarr;</span>
+        <span class="px-3 py-1 rounded-full bg-blue-600 text-white font-medium">2. {{ _('review_plan') }}</span>
+        <span class="text-gray-300">&rarr;</span>
+        <span class="px-3 py-1 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">3. {{ _('execute') }}</span>
+        <span class="text-gray-300">&rarr;</span>
+        <span class="px-3 py-1 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">4. {{ _('results') }}</span>
+    </div>
+
+    <h1 class="text-2xl font-bold mb-2">{{ _('review_plan') }}</h1>
+    <p class="text-muted mb-6">
+        The AI has analyzed your goal and created a plan.
+        Review it below, then approve to start building.
+    </p>
+
+    {% if run.status == "awaiting_review" and plan %}
+    <!-- Plan Summary Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-4">Plan Overview</h2>
+        {% if plan.subtasks is defined %}
+        <div class="space-y-3">
+            {% for subtask in plan.get("subtasks", []) %}
+            <div class="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <span class="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-primary text-xs font-bold">{{ loop.index }}</span>
+                <div>
+                    <p class="font-medium">{{ subtask.get("title", "Step " ~ loop.index) }}</p>
+                    <p class="text-sm text-muted">{{ subtask.get("description", "") }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <pre class="text-sm bg-gray-50 dark:bg-gray-700 p-4 rounded-lg overflow-x-auto">{{ plan | tojson(indent=2) }}</pre>
+        {% endif %}
+    </div>
+
+    <!-- Task Info -->
+    {% if task %}
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-3">Your Goal</h2>
+        <p class="text-muted">{{ task.get("title", "") }}</p>
+        <p class="text-sm text-muted mt-2">Scope: {{ task.get("scope", "") }}</p>
+    </div>
+    {% endif %}
+
+    <!-- Action Buttons -->
+    <div class="flex gap-4">
+        <button @click="
+            approving = true;
+            fetch('/api/wizard/{{ run.id }}/approve', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ simulate: false })
+            })
+            .then(r => r.json())
+            .then(d => { window.location.href = d.redirect; })
+            .catch(() => { approving = false; })
+        " :disabled="approving"
+           class="flex-1 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium text-lg text-center transition-colors">
+            <span x-show="!approving">{{ _('approve_execute') }}</span>
+            <span x-show="approving">Starting...</span>
+        </button>
+        <a href="/wizard" class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-center transition-colors">
+            {{ _('start_over') }}
+        </a>
+    </div>
+
+    {% elif run.status == "running" %}
+    <!-- Still creating plan -->
+    <div class="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-8 text-center">
+        <div class="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+        <p class="font-medium">AI is creating your plan...</p>
+        <p class="text-sm text-muted mt-1">This may take a moment</p>
+        <script>setTimeout(() => location.reload(), 3000);</script>
+    </div>
+
+    {% elif run.status in ("completed", "failed") %}
+    <div class="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl p-6">
+        <p>Pipeline already {{ run.status }}. <a href="/history" class="text-blue-600 hover:underline">View results</a></p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

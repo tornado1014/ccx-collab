@@ -39,6 +39,7 @@ class PipelineRunRequest(BaseModel):
     simulate: bool = False
     resume: bool = False
     force_stage: str | None = None
+    stop_after_stage: str | None = None
 
 
 class PipelineStatusResponse(BaseModel):
@@ -92,6 +93,7 @@ async def _run_pipeline_background(
     simulate: bool,
     resume: bool = False,
     force_stage: str | None = None,
+    stop_after_stage: str | None = None,
 ) -> None:
     """Execute the full pipeline in a background thread, publishing SSE events."""
     from ccx_collab.bridge import (
@@ -225,6 +227,18 @@ async def _run_pipeline_background(
                 "work_id": work_id, "stage": stage,
             })
 
+            # Stop after specified stage for review gate
+            if stop_after_stage and stage == stop_after_stage:
+                await update_pipeline_run_status(
+                    db, run_id, "awaiting_review",
+                    current_stage=stage,
+                )
+                await sse_manager.publish_stage_update(
+                    work_id, stage, "awaiting_review",
+                    detail="Waiting for user review",
+                )
+                return
+
         # All stages passed
         await update_pipeline_run_status(
             db, run_id, "completed",
@@ -330,6 +344,7 @@ async def start_pipeline(body: PipelineRunRequest):
             simulate=body.simulate,
             resume=body.resume,
             force_stage=body.force_stage,
+            stop_after_stage=body.stop_after_stage,
         )
     )
 
