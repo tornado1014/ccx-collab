@@ -379,3 +379,21 @@ def init(ctx, task_id, title, template, output):
 
     print_success(f"Task template created: {out_path}")
     console.print_json(json.dumps(task_data, indent=2, ensure_ascii=False))
+
+
+@click.command()
+@click.option("--host", default="127.0.0.1", help="Host to bind to")
+@click.option("--port", default=8000, type=int, help="Port to listen on")
+@click.option("--reload", "reload_flag", is_flag=True, help="Enable auto-reload for development")
+@click.pass_context
+def web(ctx, host, port, reload_flag):
+    """Start the web dashboard server."""
+    import uvicorn
+
+    click.echo(f"Starting cc-collab web dashboard at http://{host}:{port}")
+    uvicorn.run(
+        "cc_collab.web.app:app",
+        host=host,
+        port=port,
+        reload=reload_flag,
+    )

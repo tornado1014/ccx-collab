@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Pipeline Status{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h1>Pipeline Status</h1>
+    <p>Work ID: <code>{{ run.work_id }}</code></p>
+</hgroup>
+
+<article>
+    <header>
+        <div class="grid">
+            <div>
+                <strong>Status:</strong> <span class="badge badge-{{ run.status }}">{{ run.status }}</span>
+            </div>
+            <div>
+                <strong>Current Stage:</strong> <code>{{ run.current_stage or 'N/A' }}</code>
+            </div>
+            <div>
+                <strong>Started:</strong> {{ run.started_at or 'N/A' }}
+            </div>
+        </div>
+    </header>
+</article>
+
+<h2>Stage Progress</h2>
+<div hx-get="/api/pipeline/{{ run.id }}/status" hx-trigger="every 5s" hx-swap="innerHTML">
+    <figure>
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Stage</th>
+                    <th>Status</th>
+                    <th>Started</th>
+                    <th>Finished</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stage in stages | default([]) %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td><strong>{{ stage.stage_name }}</strong></td>
+                    <td><span class="badge badge-{{ stage.status }}">{{ stage.status }}</span></td>
+                    <td><small>{{ stage.started_at or '-' }}</small></td>
+                    <td><small>{{ stage.finished_at or '-' }}</small></td>
+                </tr>
+                {% endfor %}
+                {% if not stages %}
+                <tr>
+                    <td colspan="5">No stage data available yet.</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </figure>
+</div>
+
+<div class="quick-actions">
+    <a href="/pipeline/{{ run.id }}/monitor" role="button" class="outline">Live Monitor</a>
+    <a href="/" role="button" class="secondary">Back to Dashboard</a>
+</div>
+{% endblock %}

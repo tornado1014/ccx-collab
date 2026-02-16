@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Run Pipeline{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h1>Run Pipeline</h1>
+    <p>Configure and launch a new pipeline execution</p>
+</hgroup>
+
+<article>
+    <form hx-post="/api/pipeline/run" hx-target="#run-result" hx-swap="innerHTML">
+        <label for="task_file">Task File</label>
+        <select id="task_file" name="task_file" required>
+            <option value="" disabled selected>Select a task file...</option>
+            {% for task in available_tasks | default([]) %}
+            <option value="{{ task.path }}">{{ task.title | default(task.path) }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="work_id">Work ID <small>(optional, auto-generated if empty)</small></label>
+        <input type="text" id="work_id" name="work_id" placeholder="e.g. work-001">
+
+        <label for="mode">Execution Mode</label>
+        <select id="mode" name="mode">
+            <option value="full">Full Pipeline</option>
+            <option value="implement-only">Implement Only</option>
+        </select>
+
+        <fieldset>
+            <label>
+                <input type="checkbox" name="simulate" role="switch">
+                Simulate (no real CLI calls)
+            </label>
+            <label>
+                <input type="checkbox" name="resume" role="switch">
+                Resume from last checkpoint
+            </label>
+        </fieldset>
+
+        <button type="submit">Run Pipeline</button>
+    </form>
+</article>
+
+<div id="run-result"></div>
+{% endblock %}

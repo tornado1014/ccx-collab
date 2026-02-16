@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h1>Analytics</h1>
+    <p>Pipeline execution statistics</p>
+</hgroup>
+
+<div class="grid">
+    <article>
+        <header><strong>Success Rate</strong></header>
+        <canvas id="success-chart" style="max-height: 300px;"></canvas>
+    </article>
+    <article>
+        <header><strong>Execution Time</strong></header>
+        <canvas id="time-chart" style="max-height: 300px;"></canvas>
+    </article>
+</div>
+
+<div class="grid">
+    <article>
+        <header><strong>Runs Over Time</strong></header>
+        <canvas id="runs-chart" style="max-height: 300px;"></canvas>
+    </article>
+    <article>
+        <header><strong>Stage Failure Rate</strong></header>
+        <canvas id="stage-chart" style="max-height: 300px;"></canvas>
+    </article>
+</div>
+
+<div class="quick-actions">
+    <a href="/history" role="button" class="outline">Back to History</a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(async function() {
+    let stats;
+    try {
+        const resp = await fetch('/api/history/stats');
+        stats = await resp.json();
+    } catch (e) {
+        stats = {
+            status_counts: { completed: 0, failed: 0, running: 0, cancelled: 0 },
+            avg_duration_by_stage: {},
+            daily_runs: [],
+            stage_failure_counts: {}
+        };
+    }
+
+    const sc = stats.status_counts || {};
+    new Chart(document.getElementById('success-chart'), {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(sc),
+            datasets: [{
+                data: Object.values(sc),
+                backgroundColor: ['#2ecc71', '#e74c3c', '#3498db', '#f39c12', '#95a5a6']
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    });
+
+    const stages = stats.avg_duration_by_stage || {};
+    new Chart(document.getElementById('time-chart'), {
+        type: 'bar',
+        data: {
+            labels: Object.keys(stages),
+            datasets: [{
+                label: 'Avg Duration (s)',
+                data: Object.values(stages),
+                backgroundColor: '#3498db'
+            }]
+        },
+        options: { responsive: true, scales: { y: { beginAtZero: true } } }
+    });
+
+    const daily = stats.daily_runs || [];
+    new Chart(document.getElementById('runs-chart'), {
+        type: 'line',
+        data: {
+            labels: daily.map(d => d.date),
+            datasets: [{
+                label: 'Runs',
+                data: daily.map(d => d.count),
+                borderColor: '#3498db',
+                tension: 0.3,
+                fill: false
+            }]
+        },
+        options: { responsive: true, scales: { y: { beginAtZero: true } } }
+    });
+
+    const sf = stats.stage_failure_counts || {};
+    new Chart(document.getElementById('stage-chart'), {
+        type: 'bar',
+        data: {
+            labels: Object.keys(sf),
+            datasets: [{
+                label: 'Failures',
+                data: Object.values(sf),
+                backgroundColor: '#e74c3c'
+            }]
+        },
+        options: { responsive: true, indexAxis: 'y', scales: { x: { beginAtZero: true } } }
+    });
+})();
+</script>
+{% endblock %}

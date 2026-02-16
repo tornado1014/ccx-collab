@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Tasks{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h1>Tasks</h1>
+    <p>Manage pipeline task definitions</p>
+</hgroup>
+
+<div class="quick-actions" style="margin-bottom: 1.5rem;">
+    <a href="/tasks/create" role="button">Create New Task</a>
+</div>
+
+<figure>
+    <table>
+        <thead>
+            <tr>
+                <th>Task ID</th>
+                <th>Title</th>
+                <th>Risk Level</th>
+                <th>Priority</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="task-list">
+            {% for task in tasks | default([]) %}
+            <tr id="task-row-{{ task.task_id }}">
+                <td><code>{{ task.task_id }}</code></td>
+                <td>{{ task.title | default('Untitled') }}</td>
+                <td>
+                    {% if task.risk_level == 'high' %}
+                    <span class="badge badge-failed">{{ task.risk_level }}</span>
+                    {% elif task.risk_level == 'medium' %}
+                    <span class="badge badge-cancelled">{{ task.risk_level }}</span>
+                    {% else %}
+                    <span class="badge badge-completed">{{ task.risk_level | default('low') }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ task.priority | default('normal') }}</td>
+                <td>
+                    <div class="quick-actions">
+                        <a href="/tasks/{{ task.task_id }}" role="button" class="outline" style="padding: 0.3rem 0.6rem; font-size: 0.85rem;">View</a>
+                        <a href="/pipeline/run?task={{ task.path }}" role="button" class="outline" style="padding: 0.3rem 0.6rem; font-size: 0.85rem;">Run</a>
+                        <button class="outline secondary"
+                                style="padding: 0.3rem 0.6rem; font-size: 0.85rem;"
+                                hx-delete="/api/tasks/{{ task.task_id }}"
+                                hx-target="#task-row-{{ task.task_id }}"
+                                hx-swap="outerHTML"
+                                hx-confirm="Delete task '{{ task.task_id }}'?">Delete</button>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            {% if not tasks %}
+            <tr>
+                <td colspan="5">No tasks found. <a href="/tasks/create">Create one</a>.</td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</figure>
+{% endblock %}

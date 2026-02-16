@@ -63,10 +63,11 @@ cli.add_command(review)
 cli.add_command(retrospect)
 
 # Register tool commands
-from cc_collab.commands.tools import health, cleanup, init
+from cc_collab.commands.tools import health, cleanup, init, web
 cli.add_command(health)
 cli.add_command(cleanup)
 cli.add_command(init)
+cli.add_command(web)
 
 # Register pipeline commands
 from cc_collab.commands.pipeline import run, status

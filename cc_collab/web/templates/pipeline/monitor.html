@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Pipeline Monitor - {{ run.work_id }}{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h1>Pipeline Monitor</h1>
+    <p>Work ID: <code>{{ run.work_id }}</code> &mdash; <span class="badge badge-{{ run.status }}">{{ run.status }}</span></p>
+</hgroup>
+
+<div class="grid">
+    <section>
+        <h2>Pipeline Diagram</h2>
+        <div class="mermaid-container">
+            <pre class="mermaid" id="mermaid-diagram">
+{{ mermaid_diagram }}
+            </pre>
+        </div>
+    </section>
+
+    <section>
+        <h2>Run Info</h2>
+        <article>
+            <dl>
+                <dt>Task</dt>
+                <dd><code>{{ run.task_path }}</code></dd>
+                <dt>Started</dt>
+                <dd>{{ run.started_at or 'N/A' }}</dd>
+                <dt>Current Stage</dt>
+                <dd><code>{{ run.current_stage or 'initializing' }}</code></dd>
+            </dl>
+        </article>
+    </section>
+</div>
+
+<h2>Stage Progress</h2>
+<div hx-ext="sse" sse-connect="/api/pipeline/{{ run.id }}/stream">
+    <ul class="stage-list">
+        {% for stage in stages | default([]) %}
+        <li class="stage-item {{ stage.status }}">
+            <span class="badge badge-{{ stage.status }}">{{ stage.status }}</span>
+            <strong>{{ stage.stage_name }}</strong>
+            {% if stage.started_at %}
+            <small>{{ stage.started_at }}</small>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+
+    <h3>Live Updates</h3>
+    <div id="stage-updates" sse-swap="stage_update" hx-swap="beforeend">
+    </div>
+</div>
+
+<h2>Output Log</h2>
+<div class="json-viewer" id="output-log"
+     hx-get="/api/pipeline/{{ run.id }}/log"
+     hx-trigger="every 3s"
+     hx-swap="innerHTML">
+    Waiting for output...
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+</script>
+{% endblock %}

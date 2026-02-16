@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Webhook Settings{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h1>Webhook Settings</h1>
+    <p>Configure notification webhooks for pipeline events</p>
+</hgroup>
+
+<h2>Webhooks</h2>
+<figure>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>URL</th>
+                <th>Events</th>
+                <th>Active</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="webhook-list">
+            {% for wh in webhooks | default([]) %}
+            <tr id="webhook-row-{{ wh.id }}">
+                <td><strong>{{ wh.name }}</strong></td>
+                <td><code style="font-size: 0.8rem;">{{ wh.url }}</code></td>
+                <td>
+                    {% for event in wh.events_list | default([]) %}
+                    <span class="event-tag">{{ event }}</span>
+                    {% endfor %}
+                </td>
+                <td>
+                    <input type="checkbox"
+                           role="switch"
+                           {% if wh.active %}checked{% endif %}
+                           hx-put="/api/webhooks/{{ wh.id }}/toggle"
+                           hx-swap="none">
+                </td>
+                <td>
+                    <div class="quick-actions">
+                        <button class="outline"
+                                style="padding: 0.3rem 0.6rem; font-size: 0.85rem;"
+                                hx-post="/api/webhooks/{{ wh.id }}/test"
+                                hx-target="#test-result-{{ wh.id }}"
+                                hx-swap="innerHTML">Test</button>
+                        <button class="outline secondary"
+                                style="padding: 0.3rem 0.6rem; font-size: 0.85rem;"
+                                hx-delete="/api/webhooks/{{ wh.id }}"
+                                hx-target="#webhook-row-{{ wh.id }}"
+                                hx-swap="outerHTML"
+                                hx-confirm="Delete webhook '{{ wh.name }}'?">Delete</button>
+                    </div>
+                    <div id="test-result-{{ wh.id }}"></div>
+                </td>
+            </tr>
+            {% endfor %}
+            {% if not webhooks %}
+            <tr>
+                <td colspan="5">No webhooks configured.</td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</figure>
+
+<h2>Add Webhook</h2>
+<article>
+    <form hx-post="/api/webhooks" hx-target="#webhook-list" hx-swap="beforeend" hx-on::after-request="this.reset()">
+        <div class="grid">
+            <div>
+                <label for="wh-name">Name</label>
+                <input type="text" id="wh-name" name="name" placeholder="e.g. Slack Notification" required>
+            </div>
+            <div>
+                <label for="wh-url">URL</label>
+                <input type="url" id="wh-url" name="url" placeholder="https://hooks.example.com/..." required>
+            </div>
+        </div>
+
+        <fieldset>
+            <legend>Events</legend>
+            <label>
+                <input type="checkbox" name="events" value="pipeline_started">
+                pipeline_started
+            </label>
+            <label>
+                <input type="checkbox" name="events" value="stage_completed">
+                stage_completed
+            </label>
+            <label>
+                <input type="checkbox" name="events" value="pipeline_completed">
+                pipeline_completed
+            </label>
+            <label>
+                <input type="checkbox" name="events" value="pipeline_failed">
+                pipeline_failed
+            </label>
+        </fieldset>
+
+        <button type="submit">Add Webhook</button>
+    </form>
+</article>
+{% endblock %}

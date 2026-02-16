@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Task - {{ task.task_id }}{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h1>Task: {{ task.task_id }}</h1>
+    <p>{{ task.title | default('Untitled Task') }}</p>
+</hgroup>
+
+<div class="grid">
+    <section>
+        <article>
+            <header><strong>Task Details</strong></header>
+            <dl>
+                <dt>Task ID</dt>
+                <dd><code>{{ task.task_id }}</code></dd>
+                <dt>Title</dt>
+                <dd>{{ task.title | default('N/A') }}</dd>
+                <dt>Risk Level</dt>
+                <dd>
+                    {% if task.risk_level == 'high' %}
+                    <span class="badge badge-failed">{{ task.risk_level }}</span>
+                    {% elif task.risk_level == 'medium' %}
+                    <span class="badge badge-cancelled">{{ task.risk_level }}</span>
+                    {% else %}
+                    <span class="badge badge-completed">{{ task.risk_level | default('low') }}</span>
+                    {% endif %}
+                </dd>
+                <dt>Priority</dt>
+                <dd>{{ task.priority | default('normal') }}</dd>
+                <dt>File</dt>
+                <dd><code>{{ task.path | default('N/A') }}</code></dd>
+            </dl>
+        </article>
+    </section>
+
+    <section>
+        <article>
+            <header><strong>Task JSON</strong></header>
+            <div class="json-viewer">{{ task_json | default('{}') }}</div>
+        </article>
+    </section>
+</div>
+
+<h2>Edit Task</h2>
+<article>
+    <form hx-put="/api/tasks/{{ task.task_id }}" hx-target="#edit-result" hx-swap="innerHTML">
+        <label for="task-json">Task JSON</label>
+        <textarea id="task-json" name="task_json" rows="15" style="font-family: monospace; font-size: 0.85rem;">{{ task_json | default('{}') }}</textarea>
+        <button type="submit">Save Changes</button>
+    </form>
+    <div id="edit-result"></div>
+</article>
+
+<div class="quick-actions">
+    <a href="/pipeline/run?task={{ task.path }}" role="button">Run Pipeline</a>
+    <button class="secondary"
+            hx-delete="/api/tasks/{{ task.task_id }}"
+            hx-confirm="Delete task '{{ task.task_id }}'? This cannot be undone."
+            hx-swap="none"
+            onclick="this.addEventListener('htmx:afterRequest', function() { window.location.href = '/tasks'; })">
+        Delete Task
+    </button>
+    <a href="/tasks" role="button" class="outline">Back to Tasks</a>
+</div>
+{% endblock %}

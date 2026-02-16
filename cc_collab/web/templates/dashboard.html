@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h1>Dashboard</h1>
+    <p>Pipeline overview and quick actions</p>
+</hgroup>
+
+<div class="stats-grid">
+    <article class="stat-card">
+        <h2>{{ total_runs | default(0) }}</h2>
+        <p>Total Runs</p>
+    </article>
+    <article class="stat-card">
+        <h2>{{ status_counts.get('running', 0) if status_counts else 0 }}</h2>
+        <p>Running</p>
+    </article>
+    <article class="stat-card">
+        <h2>{{ status_counts.get('completed', 0) if status_counts else 0 }}</h2>
+        <p>Completed</p>
+    </article>
+    <article class="stat-card">
+        <h2>{{ status_counts.get('failed', 0) if status_counts else 0 }}</h2>
+        <p>Failed</p>
+    </article>
+</div>
+
+<div class="grid">
+    <section>
+        <hgroup>
+            <h2>Running Pipelines</h2>
+            <p>Currently active pipeline executions</p>
+        </hgroup>
+        {% if running_pipelines %}
+        {% for run in running_pipelines %}
+        <article>
+            <header>
+                <span class="badge badge-running">running</span>
+                <strong>{{ run.work_id }}</strong>
+            </header>
+            <p>Stage: <code>{{ run.current_stage or 'initializing' }}</code></p>
+            <p><small>Started: {{ run.started_at or 'N/A' }}</small></p>
+            <footer>
+                <a href="/pipeline/{{ run.id }}/monitor" role="button" class="outline">Monitor</a>
+            </footer>
+        </article>
+        {% endfor %}
+        {% else %}
+        <p>No pipelines currently running.</p>
+        {% endif %}
+    </section>
+
+    <section>
+        <hgroup>
+            <h2>Recent Completions</h2>
+            <p>Latest pipeline results</p>
+        </hgroup>
+        {% if recent_runs %}
+        <figure>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Work ID</th>
+                        <th>Status</th>
+                        <th>Started</th>
+                        <th>Finished</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for run in recent_runs %}
+                    <tr>
+                        <td><a href="/history/{{ run.id }}">{{ run.work_id }}</a></td>
+                        <td>
+                            <span class="badge badge-{{ run.status }}">{{ run.status }}</span>
+                        </td>
+                        <td><small>{{ run.started_at or 'N/A' }}</small></td>
+                        <td><small>{{ run.finished_at or 'N/A' }}</small></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </figure>
+        {% else %}
+        <p>No completed runs yet.</p>
+        {% endif %}
+    </section>
+</div>
+
+<div class="quick-actions">
+    <a href="/tasks" role="button">Quick Run</a>
+    <a href="/history" role="button" class="secondary">View History</a>
+    <a href="/history/charts" role="button" class="outline">Analytics</a>
+</div>
+{% endblock %}

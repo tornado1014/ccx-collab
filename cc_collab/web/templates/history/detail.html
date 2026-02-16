@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Run Detail - {{ run.work_id }}{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h1>Run Detail</h1>
+    <p>Work ID: <code>{{ run.work_id }}</code></p>
+</hgroup>
+
+<article>
+    <header><strong>Pipeline Run Info</strong></header>
+    <div class="grid">
+        <div>
+            <dl>
+                <dt>Run ID</dt>
+                <dd><code>{{ run.id }}</code></dd>
+                <dt>Work ID</dt>
+                <dd><code>{{ run.work_id }}</code></dd>
+                <dt>Task Path</dt>
+                <dd><code>{{ run.task_path }}</code></dd>
+            </dl>
+        </div>
+        <div>
+            <dl>
+                <dt>Status</dt>
+                <dd><span class="badge badge-{{ run.status }}">{{ run.status }}</span></dd>
+                <dt>Started</dt>
+                <dd>{{ run.started_at or 'N/A' }}</dd>
+                <dt>Finished</dt>
+                <dd>{{ run.finished_at or 'N/A' }}</dd>
+            </dl>
+        </div>
+    </div>
+</article>
+
+<h2>Pipeline Diagram</h2>
+<div class="mermaid-container">
+    <pre class="mermaid">
+{{ mermaid_diagram }}
+    </pre>
+</div>
+
+<h2>Stage Results</h2>
+<figure>
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Stage</th>
+                <th>Status</th>
+                <th>Started</th>
+                <th>Finished</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for stage in stages | default([]) %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td><strong>{{ stage.stage_name }}</strong></td>
+                <td><span class="badge badge-{{ stage.status }}">{{ stage.status }}</span></td>
+                <td><small>{{ stage.started_at or '-' }}</small></td>
+                <td><small>{{ stage.finished_at or '-' }}</small></td>
+                <td>
+                    {% if stage.result_json %}
+                    <details>
+                        <summary>View JSON</summary>
+                        <div class="json-viewer">{{ stage.result_json }}</div>
+                    </details>
+                    {% else %}
+                    <small>-</small>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            {% if not stages %}
+            <tr>
+                <td colspan="6">No stage results recorded.</td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</figure>
+
+<div class="quick-actions">
+    <a href="/history" role="button" class="outline">Back to History</a>
+    <a href="/" role="button" class="secondary">Dashboard</a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+</script>
+{% endblock %}

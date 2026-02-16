@@ -1,0 +1,106 @@
+/* cc-collab dashboard custom styles */
+
+/* Status badges */
+.badge {
+    display: inline-block;
+    padding: 0.2em 0.6em;
+    border-radius: 4px;
+    font-size: 0.85em;
+    font-weight: 600;
+}
+.badge-running { background: var(--pico-primary-background); color: white; }
+.badge-completed { background: #2ecc71; color: white; }
+.badge-failed { background: #e74c3c; color: white; }
+.badge-pending { background: #95a5a6; color: white; }
+.badge-cancelled { background: #f39c12; color: white; }
+
+/* Dashboard cards */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+.stat-card { text-align: center; }
+.stat-card h2 { margin-bottom: 0.25rem; font-size: 2.5rem; }
+.stat-card p { margin: 0; color: var(--pico-muted-color); }
+
+/* Pipeline stages */
+.stage-list { list-style: none; padding: 0; }
+.stage-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border-left: 3px solid var(--pico-muted-color);
+    margin-bottom: 0.5rem;
+}
+.stage-item.completed { border-left-color: #2ecc71; }
+.stage-item.running { border-left-color: var(--pico-primary); }
+.stage-item.failed { border-left-color: #e74c3c; }
+.stage-item.pending { border-left-color: #95a5a6; }
+
+/* Stage update from SSE */
+.stage-update {
+    padding: 0.5rem 1rem;
+    margin-bottom: 0.25rem;
+    border-radius: 4px;
+    background: var(--pico-card-background-color);
+    animation: fadeIn 0.3s;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Mermaid diagram */
+.mermaid-container {
+    margin: 1.5rem 0;
+    padding: 1rem;
+    background: var(--pico-card-background-color);
+    border-radius: 8px;
+    overflow-x: auto;
+}
+
+/* JSON viewer */
+.json-viewer {
+    background: var(--pico-code-background-color);
+    padding: 1rem;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-family: monospace;
+    font-size: 0.85rem;
+    white-space: pre-wrap;
+}
+
+/* Navigation active state */
+nav a[aria-current="page"] { font-weight: bold; }
+
+/* Quick actions */
+.quick-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+/* Webhook event tags */
+.event-tag {
+    display: inline-block;
+    padding: 0.15em 0.5em;
+    margin: 0.1em;
+    border-radius: 3px;
+    font-size: 0.8em;
+    background: var(--pico-secondary-background);
+    color: var(--pico-secondary-inverse);
+}
+
+/* Theme toggle button */
+.theme-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 0.25rem;
+}
+
+/* Lang selector */
+.lang-select {
+    font-size: 0.85rem;
+    padding: 0.2rem;
+}

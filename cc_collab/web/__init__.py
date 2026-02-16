@@ -1,0 +1,1 @@
+"""cc-collab web dashboard."""

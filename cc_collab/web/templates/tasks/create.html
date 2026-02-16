@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Create Task{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h1>Create Task</h1>
+    <p>Define a new pipeline task</p>
+</hgroup>
+
+<article>
+    <form hx-post="/api/tasks" hx-target="#create-result" hx-swap="innerHTML">
+        <div class="grid">
+            <div>
+                <label for="task_id">Task ID</label>
+                <input type="text" id="task_id" name="task_id" placeholder="e.g. TASK-001" required>
+            </div>
+            <div>
+                <label for="title">Title</label>
+                <input type="text" id="title" name="title" placeholder="Task title" required>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div>
+                <label for="template">Template</label>
+                <select id="template" name="template">
+                    <option value="simple">Simple</option>
+                    <option value="standard" selected>Standard</option>
+                    <option value="complex">Complex</option>
+                </select>
+            </div>
+            <div>
+                <label for="risk_level">Risk Level</label>
+                <select id="risk_level" name="risk_level">
+                    <option value="low" selected>Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                </select>
+            </div>
+            <div>
+                <label for="priority">Priority</label>
+                <select id="priority" name="priority">
+                    <option value="low">Low</option>
+                    <option value="normal" selected>Normal</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                </select>
+            </div>
+        </div>
+
+        <label for="description">Description</label>
+        <textarea id="description" name="description" rows="4" placeholder="Describe the task objective..."></textarea>
+
+        <label for="verify_commands">Verify Commands <small>(one per line)</small></label>
+        <textarea id="verify_commands" name="verify_commands" rows="3" placeholder="python -m pytest tests/ -v" style="font-family: monospace; font-size: 0.85rem;"></textarea>
+
+        <button type="submit">Create Task</button>
+    </form>
+</article>
+
+<div id="create-result"></div>
+{% endblock %}
